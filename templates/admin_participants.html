@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Admin: Manage Participants - Bowl Pool{% endblock %}
+
+{% block content %}
+<h1>Admin: Manage Participants</h1>
+
+<p><a href="{{ url_for('scoreboard') }}">&larr; Back to Scoreboard</a></p>
+
+<div class="card">
+    <h2>Add New Participant</h2>
+    <form method="POST">
+        <input type="hidden" name="action" value="add">
+
+        <div class="form-group">
+            <label for="name">Full Name:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+
+        <div class="form-group">
+            <label for="nickname">Nickname (optional):</label>
+            <input type="text" id="nickname" name="nickname">
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email (optional):</label>
+            <input type="email" id="email" name="email">
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="is_admin">
+                Admin privileges
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-success">Add Participant</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Existing Participants</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Nickname</th>
+                <th>Email</th>
+                <th>Admin</th>
+                <th>Invite Token</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for participant in participants %}
+            <tr>
+                <td>{{ participant.name }}</td>
+                <td>{{ participant.nickname or '-' }}</td>
+                <td>{{ participant.email or '-' }}</td>
+                <td>{{ 'Yes' if participant.is_admin else 'No' }}</td>
+                <td>
+                    <input type="text" value="{{ participant.invite_token }}" readonly
+                           style="width: 300px; font-family: monospace; font-size: 0.85em;"
+                           onclick="this.select()">
+                    <br>
+                    <small>
+                        <strong>Login URL:</strong>
+                        <a href="{{ url_for('login', _external=True) }}" target="_blank">
+                            {{ url_for('login', _external=True) }}
+                        </a>
+                    </small>
+                </td>
+                <td>
+                    <form method="POST" style="display: inline;" onsubmit="return confirm('Delete {{ participant.name }}?');">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="participant_id" value="{{ participant.id }}">
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

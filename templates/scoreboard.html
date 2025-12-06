@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Scoreboard - Bowl Pool{% endblock %}
+
+{% block extra_css %}
+<style>
+    .scoreboard-table {
+        overflow-x: auto;
+    }
+
+    .scoreboard-table table {
+        min-width: 800px;
+        font-size: 0.9em;
+    }
+
+    .scoreboard-table th {
+        position: sticky;
+        top: 0;
+        background-color: #2c3e50;
+        z-index: 10;
+    }
+
+    .scoreboard-table .game-col {
+        min-width: 200px;
+        background-color: #34495e;
+    }
+
+    .scoreboard-table .participant-col {
+        text-align: center;
+        min-width: 100px;
+    }
+
+    .pick-cell {
+        text-align: center;
+        padding: 8px;
+        font-size: 0.85em;
+    }
+
+    .pick-winner {
+        background-color: #d4edda;
+        color: #155724;
+        font-weight: bold;
+    }
+
+    .pick-loser {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .pick-push {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .pick-pending {
+        background-color: #f9f9f9;
+    }
+
+    .pick-unique {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .pick-rare {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .total-row {
+        font-weight: bold;
+        background-color: #e8e8e8;
+    }
+
+    .total-row td {
+        border-top: 3px solid #2c3e50;
+    }
+
+    .controls {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: white;
+        border-radius: 4px;
+    }
+
+    .toggle-label {
+        margin-left: 10px;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Scoreboard</h1>
+
+<div class="controls card">
+    <label>
+        <input type="checkbox" id="toggle-running-total" onchange="toggleRunningTotal()">
+        <span class="toggle-label">Show Running Total</span>
+    </label>
+</div>
+
+<div class="scoreboard-table">
+    <table id="scoreboard">
+        <thead>
+            <tr>
+                <th class="game-col">Bowl Game</th>
+                {% for participant in participants %}
+                <th class="participant-col">{{ participant.get_display_name() }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for bowl in bowls %}
+            <tr>
+                <td>
+                    <strong>{{ bowl.name }}</strong><br>
+                    <small>{{ bowl.favored_team }} ({{ bowl.spread }}) vs {{ bowl.opponent }}</small><br>
+                    {% if bowl.status == 'final' %}
+                        <small><strong>Final: {{ bowl.favored_team_score }} - {{ bowl.opponent_score }}</strong></small>
+                    {% elif bowl.status == 'in_progress' %}
+                        <small><em>In Progress</em></small>
+                    {% elif bowl.status == 'canceled' %}
+                        <small><em>Canceled</em></small>
+                    {% endif %}
+                </td>
+                {% for participant in participants %}
+                <td class="pick-cell
+                    {% set pick = pick_dict.get((participant.id, bowl.id)) %}
+                    {% if bowl.get_winner() == 'push' or bowl.is_ignored %}
+                        pick-push
+                    {% elif bowl.status == 'final' and pick %}
+                        {% if pick.is_winner() %}
+                            pick-winner
+                        {% elif pick.is_winner() == False %}
+                            pick-loser
+                        {% else %}
+                            pick-push
+                        {% endif %}
+                    {% elif not locked %}
+                        pick-pending
+                    {% elif locked and bowl.status == 'not_started' and pick %}
+                        {% set count = pick_counts[bowl.id][pick.picked_team] %}
+                        {% if count == 1 %}
+                            pick-unique
+                        {% elif count == 2 %}
+                            pick-rare
+                        {% endif %}
+                    {% endif %}
+                    ">
+                    {% if pick %}
+                        {% if locked or bowl.status in ['final', 'in_progress'] %}
+                            {% if pick.picked_team == 'favored' %}
+                                {{ bowl.favored_team }}
+                            {% else %}
+                                {{ bowl.opponent }}
+                            {% endif %}
+                            <br>
+                            <span class="score-display" data-game-score="{{ scores[participant.id].get(bowl.id, 0) }}">
+                                {% if scores[participant.id].get(bowl.id, 0) > 0 %}+{% endif %}{{ scores[participant.id].get(bowl.id, 0) }}
+                            </span>
+                        {% else %}
+                            <small><em>Hidden</em></small>
+                        {% endif %}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+
+            <tr class="total-row">
+                <td><strong>TOTAL</strong></td>
+                {% for participant in participants %}
+                <td class="pick-cell">
+                    <strong>{{ scores[participant.id]['total'] }}</strong>
+                </td>
+                {% endfor %}
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+{% if session.get('participant_id') %}
+    {% set current_participant = namespace() %}
+    {% for p in participants if p.id == session.get('participant_id') %}
+        {% set current_participant.obj = p %}
+    {% endfor %}
+    {% if current_participant.obj and current_participant.obj.is_admin %}
+    <div style="margin-top: 20px;">
+        <a href="{{ url_for('admin_scores') }}" class="btn">Admin: Enter Scores</a>
+        <a href="{{ url_for('admin_bowls') }}" class="btn">Admin: Manage Bowls</a>
+        <a href="{{ url_for('admin_participants') }}" class="btn">Admin: Manage Participants</a>
+    </div>
+    {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let showRunningTotal = false;
+const runningTotals = {};
+
+function calculateRunningTotals() {
+    const table = document.getElementById('scoreboard');
+    const rows = table.querySelectorAll('tbody tr:not(.total-row)');
+    const participantCount = {{ participants|length }};
+
+    // Initialize running totals
+    for (let i = 0; i < participantCount; i++) {
+        runningTotals[i] = 0;
+    }
+
+    // Calculate running totals row by row
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('.pick-cell');
+        cells.forEach((cell, index) => {
+            const scoreDisplay = cell.querySelector('.score-display');
+            if (scoreDisplay) {
+                const gameScore = parseInt(scoreDisplay.getAttribute('data-game-score')) || 0;
+                runningTotals[index] += gameScore;
+            }
+        });
+    });
+}
+
+function toggleRunningTotal() {
+    showRunningTotal = !showRunningTotal;
+    const table = document.getElementById('scoreboard');
+    const rows = table.querySelectorAll('tbody tr:not(.total-row)');
+    const participantCount = {{ participants|length }};
+
+    if (showRunningTotal) {
+        calculateRunningTotals();
+    }
+
+    // Reset running totals
+    const currentTotals = Array(participantCount).fill(0);
+
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('.pick-cell');
+        cells.forEach((cell, index) => {
+            const scoreDisplay = cell.querySelector('.score-display');
+            if (scoreDisplay) {
+                const gameScore = parseInt(scoreDisplay.getAttribute('data-game-score')) || 0;
+                currentTotals[index] += gameScore;
+
+                if (showRunningTotal) {
+                    scoreDisplay.textContent = (currentTotals[index] >= 0 ? '+' : '') + currentTotals[index];
+                } else {
+                    scoreDisplay.textContent = (gameScore >= 0 ? '+' : '') + gameScore;
+                }
+            }
+        });
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}My Picks - Bowl Pool{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pick-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr 2fr 1fr;
+        gap: 10px;
+        align-items: center;
+        padding: 15px;
+        margin-bottom: 10px;
+        background: white;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+    }
+
+    .pick-row.locked {
+        background-color: #f9f9f9;
+    }
+
+    .team-pick {
+        padding: 10px;
+        border: 2px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: center;
+    }
+
+    .team-pick:hover:not(.disabled) {
+        border-color: #3498db;
+        background-color: #ecf0f1;
+    }
+
+    .team-pick.selected {
+        border-color: #27ae60;
+        background-color: #d4edda;
+        font-weight: bold;
+    }
+
+    .team-pick.disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .spread {
+        text-align: center;
+        font-weight: bold;
+        color: #666;
+    }
+
+    .game-info {
+        font-size: 0.9em;
+        color: #666;
+    }
+
+    .locked-message {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        border: 1px solid #ffeaa7;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>My Picks - {{ participant.get_display_name() }}</h1>
+
+{% if locked %}
+    <div class="locked-message">
+        Picks are locked. The first bowl game has started.
+    </div>
+{% endif %}
+
+<form method="POST" id="picks-form">
+    {% for bowl in bowls %}
+    <div class="pick-row {% if locked %}locked{% endif %}">
+        <div>
+            <strong>{{ bowl.name }}</strong>
+            <div class="game-info">{{ bowl.datetime_utc.strftime('%b %d, %Y %I:%M %p UTC') }}</div>
+        </div>
+
+        <div class="team-pick {% if not locked %}clickable{% else %}disabled{% endif %} {% if current_picks.get(bowl.id) == 'favored' %}selected{% endif %}"
+             onclick="{% if not locked %}selectTeam({{ bowl.id }}, 'favored'){% endif %}">
+            {{ bowl.favored_team }}
+            <input type="radio" name="pick_{{ bowl.id }}" value="favored"
+                   {% if current_picks.get(bowl.id) == 'favored' %}checked{% endif %}
+                   {% if locked %}disabled{% endif %}
+                   style="display: none;">
+        </div>
+
+        <div class="spread">
+            {{ bowl.spread }}
+        </div>
+
+        <div class="team-pick {% if not locked %}clickable{% else %}disabled{% endif %} {% if current_picks.get(bowl.id) == 'opponent' %}selected{% endif %}"
+             onclick="{% if not locked %}selectTeam({{ bowl.id }}, 'opponent'){% endif %}">
+            {{ bowl.opponent }}
+            <input type="radio" name="pick_{{ bowl.id }}" value="opponent"
+                   {% if current_picks.get(bowl.id) == 'opponent' %}checked{% endif %}
+                   {% if locked %}disabled{% endif %}
+                   style="display: none;">
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if not locked %}
+    <div style="margin-top: 20px;">
+        <button type="submit" class="btn btn-success">Save Picks</button>
+    </div>
+    {% endif %}
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function selectTeam(bowlId, team) {
+    const radio = document.querySelector(`input[name="pick_${bowlId}"][value="${team}"]`);
+    if (radio && !radio.disabled) {
+        radio.checked = true;
+
+        // Update visual selection
+        const pickRow = radio.closest('.pick-row');
+        pickRow.querySelectorAll('.team-pick').forEach(el => el.classList.remove('selected'));
+        radio.closest('.team-pick').classList.add('selected');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: bowl-pool
+    runtime: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bowl-pool-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.13.0
+
+databases:
+  - name: bowl-pool-db
+    databaseName: bowl_pool
+    user: bowl_pool_user

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Admin: Scores - Bowl Pool{% endblock %}
+
+{% block content %}
+<h1>Admin: Enter Bowl Scores</h1>
+
+<p><a href="{{ url_for('scoreboard') }}">&larr; Back to Scoreboard</a></p>
+
+<div class="card">
+    {% for bowl in bowls %}
+    <form method="POST" style="margin-bottom: 30px; padding-bottom: 30px; border-bottom: 1px solid #ddd;">
+        <input type="hidden" name="bowl_id" value="{{ bowl.id }}">
+
+        <h3>{{ bowl.name }}</h3>
+        <p><strong>{{ bowl.favored_team }}</strong> ({{ bowl.spread }}) vs <strong>{{ bowl.opponent }}</strong></p>
+        <p><small>{{ bowl.datetime_utc.strftime('%b %d, %Y %I:%M %p UTC') }}</small></p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 15px;">
+            <div class="form-group">
+                <label for="favored_score_{{ bowl.id }}">{{ bowl.favored_team }} Score:</label>
+                <input type="number" id="favored_score_{{ bowl.id }}" name="favored_team_score"
+                       value="{{ bowl.favored_team_score if bowl.favored_team_score is not none else '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="opponent_score_{{ bowl.id }}">{{ bowl.opponent }} Score:</label>
+                <input type="number" id="opponent_score_{{ bowl.id }}" name="opponent_score"
+                       value="{{ bowl.opponent_score if bowl.opponent_score is not none else '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="status_{{ bowl.id }}">Status:</label>
+                <select id="status_{{ bowl.id }}" name="status">
+                    <option value="not_started" {% if bowl.status == 'not_started' %}selected{% endif %}>Not Started</option>
+                    <option value="in_progress" {% if bowl.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                    <option value="final" {% if bowl.status == 'final' %}selected{% endif %}>Final</option>
+                    <option value="canceled" {% if bowl.status == 'canceled' %}selected{% endif %}>Canceled</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="is_ignored" {% if bowl.is_ignored %}checked{% endif %}>
+                Ignore this game (treat as push)
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-success">Update {{ bowl.name }}</button>
+
+        {% if bowl.favored_team_score is not none and bowl.opponent_score is not none %}
+        <div style="margin-top: 10px; padding: 10px; background-color: #e8f4f8; border-radius: 4px;">
+            <strong>Winner against spread:</strong>
+            {% set winner = bowl.get_winner() %}
+            {% if winner == 'favored' %}
+                {{ bowl.favored_team }}
+            {% elif winner == 'opponent' %}
+                {{ bowl.opponent }}
+            {% elif winner == 'push' %}
+                PUSH (Tie)
+            {% endif %}
+        </div>
+        {% endif %}
+    </form>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Admin: Manage Bowls - Bowl Pool{% endblock %}
+
+{% block content %}
+<h1>Admin: Manage Bowl Games</h1>
+
+<p><a href="{{ url_for('scoreboard') }}">&larr; Back to Scoreboard</a></p>
+
+<div class="card">
+    <h2>Add New Bowl Game</h2>
+    <form method="POST">
+        <input type="hidden" name="action" value="add">
+
+        <div class="form-group">
+            <label for="name">Bowl Name:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+
+        <div class="form-group">
+            <label for="datetime_utc">Date/Time (UTC):</label>
+            <input type="datetime-local" id="datetime_utc" name="datetime_utc" required>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="form-group">
+                <label for="favored_team">Favored Team:</label>
+                <input type="text" id="favored_team" name="favored_team" required>
+            </div>
+
+            <div class="form-group">
+                <label for="opponent">Opponent:</label>
+                <input type="text" id="opponent" name="opponent" required>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="spread">Spread (favored team adjustment, e.g., -3.5):</label>
+            <input type="number" id="spread" name="spread" step="0.5" required>
+        </div>
+
+        <button type="submit" class="btn btn-success">Add Bowl Game</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Existing Bowl Games</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Bowl Name</th>
+                <th>Date/Time (UTC)</th>
+                <th>Matchup</th>
+                <th>Spread</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bowl in bowls %}
+            <tr>
+                <td>{{ bowl.name }}</td>
+                <td>{{ bowl.datetime_utc.strftime('%b %d, %Y %I:%M %p') }}</td>
+                <td>{{ bowl.favored_team }} vs {{ bowl.opponent }}</td>
+                <td>{{ bowl.spread }}</td>
+                <td>
+                    <form method="POST" style="display: inline;" onsubmit="return confirm('Delete {{ bowl.name }}?');">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="bowl_id" value="{{ bowl.id }}">
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
