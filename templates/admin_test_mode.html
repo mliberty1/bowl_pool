@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Admin: Test Mode - Bowl Pool{% endblock %}
+
+{% block content %}
+<h1>Admin: Test Mode (Time Override)</h1>
+
+<p><a href="{{ url_for('admin_index') }}">&larr; Back to Admin Dashboard</a></p>
+
+<div class="card" style="background-color: #fff3cd; border: 2px solid #856404;">
+    <h2 style="color: #856404;">Current Status</h2>
+
+    <p><strong>Real Current Time:</strong> {{ real_datetime.strftime('%Y-%m-%d %H:%M:%S UTC') }}</p>
+
+    {% if settings.override_datetime %}
+        <p style="color: #e74c3c; font-weight: bold; font-size: 1.2em;">
+            TEST MODE ACTIVE
+        </p>
+        <p><strong>System Time (Override):</strong> {{ current_datetime.strftime('%Y-%m-%d %H:%M:%S UTC') }}</p>
+    {% else %}
+        <p style="color: #27ae60; font-weight: bold;">
+            Using Real Time (Test Mode Disabled)
+        </p>
+        <p><strong>System Time:</strong> {{ current_datetime.strftime('%Y-%m-%d %H:%M:%S UTC') }}</p>
+    {% endif %}
+
+    {% if first_bowl %}
+    <p style="margin-top: 15px;">
+        <strong>First Bowl Game:</strong> {{ first_bowl.name }}<br>
+        <strong>Starts:</strong> {{ first_bowl.datetime_utc.strftime('%Y-%m-%d %H:%M:%S UTC') }}<br>
+        <strong>Picks Locked:</strong>
+        {% if current_datetime >= first_bowl.datetime_utc %}
+            <span style="color: #e74c3c; font-weight: bold;">YES</span>
+        {% else %}
+            <span style="color: #27ae60;">NO</span>
+        {% endif %}
+    </p>
+    {% endif %}
+</div>
+
+{% if settings.override_datetime %}
+<div class="card" style="border: 2px solid #e74c3c;">
+    <h2>Disable Test Mode</h2>
+    <p>Return to using real system time.</p>
+    <form method="POST">
+        <input type="hidden" name="action" value="clear">
+        <button type="submit" class="btn btn-danger">Disable Test Mode</button>
+    </form>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Set Test Mode</h2>
+    <p>Override the current date/time for testing. This affects:</p>
+    <ul>
+        <li>Whether picks are locked</li>
+        <li>Which games show as started</li>
+        <li>Scoreboard display</li>
+    </ul>
+
+    <form method="POST" style="margin-top: 20px;">
+        <input type="hidden" name="action" value="set">
+
+        <div class="form-group">
+            <label for="override_datetime">Set System Time To:</label>
+            <input type="datetime-local" id="override_datetime" name="override_datetime"
+                   value="{{ settings.override_datetime.strftime('%Y-%m-%dT%H:%M') if settings.override_datetime else '' }}"
+                   required>
+            <small style="color: #666; display: block; margin-top: 5px;">
+                Enter time in UTC. Leave this page to see the datetime-local widget in your timezone.
+            </small>
+        </div>
+
+        <button type="submit" class="btn btn-success">Enable Test Mode</button>
+    </form>
+</div>
+
+<div class="card" style="background-color: #d1ecf1;">
+    <h2>Quick Test Scenarios</h2>
+    <p>Set time to test different scenarios:</p>
+
+    {% if first_bowl %}
+    <div style="margin-top: 15px;">
+        <strong>Before Picks Lock:</strong><br>
+        <form method="POST" style="display: inline;">
+            <input type="hidden" name="action" value="set">
+            <input type="hidden" name="override_datetime" value="{{ (first_bowl.datetime_utc.replace(hour=first_bowl.datetime_utc.hour - 1) if first_bowl.datetime_utc.hour > 0 else first_bowl.datetime_utc).strftime('%Y-%m-%dT%H:%M') }}">
+            <button type="submit" class="btn" style="font-size: 0.9em;">1 hour before first game</button>
+        </form>
+    </div>
+
+    <div style="margin-top: 10px;">
+        <strong>After Picks Lock:</strong><br>
+        <form method="POST" style="display: inline;">
+            <input type="hidden" name="action" value="set">
+            <input type="hidden" name="override_datetime" value="{{ (first_bowl.datetime_utc.replace(hour=first_bowl.datetime_utc.hour + 1)).strftime('%Y-%m-%dT%H:%M') }}">
+            <button type="submit" class="btn" style="font-size: 0.9em;">1 hour after first game</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

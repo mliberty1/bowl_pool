@@ -196,6 +196,15 @@
     </nav>
 
     <div class="container">
+        {% if test_mode %}
+        <div style="background-color: #e74c3c; color: white; padding: 15px; border-radius: 4px; margin-bottom: 20px; text-align: center; font-weight: bold;">
+            ⚠ TEST MODE ACTIVE - System time override: {{ test_datetime.strftime('%Y-%m-%d %H:%M UTC') }}
+            {% if current_user and current_user.is_admin %}
+            - <a href="{{ url_for('admin_test_mode') }}" style="color: white; text-decoration: underline;">Manage</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="flash-messages">

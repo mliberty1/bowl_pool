@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-from models import db, Bowl, Participant, Pick
+from models import db, Bowl, Participant, Pick, Settings
 from config import Config
 from functools import wraps
 from datetime import datetime
@@ -17,7 +17,20 @@ def inject_current_user():
     participant = None
     if 'participant_id' in session:
         participant = Participant.query.get(session['participant_id'])
-    return dict(current_user=participant)
+
+    # Also inject test mode status
+    settings = Settings.get_instance()
+    test_mode = settings.override_datetime is not None
+
+    return dict(current_user=participant, test_mode=test_mode, test_datetime=settings.override_datetime)
+
+
+def get_current_datetime():
+    """Get current datetime, or override if set (for testing)"""
+    settings = Settings.get_instance()
+    if settings.override_datetime:
+        return settings.override_datetime
+    return datetime.utcnow()
 
 
 # Authentication decorator
@@ -54,7 +67,7 @@ def picks_are_locked():
     """Check if picks are locked (first bowl game has started)"""
     first_bowl = Bowl.query.order_by(Bowl.datetime_utc).first()
     if first_bowl:
-        return datetime.utcnow() >= first_bowl.datetime_utc
+        return get_current_datetime() >= first_bowl.datetime_utc
     return False
 
 
@@ -436,6 +449,42 @@ def admin_bowls():
         editing_bowl = Bowl.query.get(edit_bowl_id)
 
     return render_template('admin_bowls.html', bowls=bowls, editing_bowl=editing_bowl)
+
+
+@app.route('/admin/test-mode', methods=['GET', 'POST'])
+@admin_required
+def admin_test_mode():
+    """Admin page to set test mode datetime override"""
+    settings = Settings.get_instance()
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'set':
+            datetime_str = request.form.get('override_datetime')
+            try:
+                override_dt = datetime.fromisoformat(datetime_str)
+                settings.override_datetime = override_dt
+                db.session.commit()
+                flash(f'Test mode enabled: Time set to {override_dt.strftime("%Y-%m-%d %H:%M UTC")}', 'success')
+            except ValueError:
+                flash('Invalid datetime format', 'error')
+
+        elif action == 'clear':
+            settings.override_datetime = None
+            db.session.commit()
+            flash('Test mode disabled: Using real time', 'success')
+
+        return redirect(url_for('admin_test_mode'))
+
+    # Get first bowl game for reference
+    first_bowl = Bowl.query.order_by(Bowl.datetime_utc).first()
+
+    return render_template('admin_test_mode.html',
+                           settings=settings,
+                           current_datetime=get_current_datetime(),
+                           real_datetime=datetime.utcnow(),
+                           first_bowl=first_bowl)
 
 
 @app.route('/admin/participants', methods=['GET', 'POST'])

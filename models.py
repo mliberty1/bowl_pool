@@ -5,6 +5,26 @@ import secrets
 db = SQLAlchemy()
 
 
+class Settings(db.Model):
+    __tablename__ = 'settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    override_datetime = db.Column(db.DateTime, nullable=True)  # For testing: override current time
+
+    def __repr__(self):
+        return f'<Settings override={self.override_datetime}>'
+
+    @staticmethod
+    def get_instance():
+        """Get or create the single settings instance"""
+        settings = Settings.query.first()
+        if not settings:
+            settings = Settings()
+            db.session.add(settings)
+            db.session.commit()
+        return settings
+
+
 class Bowl(db.Model):
     __tablename__ = 'bowls'
 
