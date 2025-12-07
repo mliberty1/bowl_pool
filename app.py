@@ -192,6 +192,9 @@ def login():
         if participant:
             session['participant_id'] = participant.id
             flash(f'Welcome, {participant.get_display_name()}!', 'success')
+            # Redirect to scoreboard if picks are locked, otherwise to picks page
+            if picks_are_locked():
+                return redirect(url_for('scoreboard'))
             return redirect(url_for('picks'))
         else:
             flash('Invalid invite token', 'error')
@@ -203,6 +206,9 @@ def login():
         if participant:
             session['participant_id'] = participant.id
             flash(f'Welcome, {participant.get_display_name()}!', 'success')
+            # Redirect to scoreboard if picks are locked, otherwise to picks page
+            if picks_are_locked():
+                return redirect(url_for('scoreboard'))
             return redirect(url_for('picks'))
         else:
             flash('Invalid invite token', 'error')
