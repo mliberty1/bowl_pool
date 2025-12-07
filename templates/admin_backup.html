@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Admin: Database Backup - Bowl Pool{% endblock %}
+
+{% block content %}
+<h1>Admin: Database Backup</h1>
+
+<p><a href="{{ url_for('admin_index') }}">&larr; Back to Admin Dashboard</a></p>
+
+<div class="card">
+    <h2>Download Database Backup</h2>
+    <p>Download a complete backup of the database in SQL format. This backup includes:</p>
+    <ul>
+        <li>All bowl games and scores</li>
+        <li>All participants and their picks</li>
+        <li>All settings and configuration</li>
+    </ul>
+
+    <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 5px; padding: 15px; margin: 20px 0;">
+        <strong>Backup Format:</strong> SQL dump file that can be restored using database tools
+        <br>
+        <strong>Filename:</strong> bowl_pool_backup_YYYYMMDD_HHMMSS.sql
+    </div>
+
+    <a href="{{ url_for('admin_backup_download') }}" class="btn btn-success" style="font-size: 1.1em; padding: 12px 24px;">
+        Download Database Backup
+    </a>
+</div>
+
+<div class="card" style="background-color: #fff3cd; border: 1px solid #ffc107;">
+    <h2>Backup Information</h2>
+
+    <h3>What is included in the backup?</h3>
+    <p>The backup is a complete SQL dump of your database. It contains all tables, data, and structure needed to restore your bowl pool to its current state.</p>
+
+    <h3>How to restore a backup (SQLite)?</h3>
+    <p>If you need to restore from a backup:</p>
+    <pre style="background-color: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto;">
+# Stop the application first
+# Then restore the backup:
+sqlite3 /var/data/instance/bowl_pool.db &lt; bowl_pool_backup_YYYYMMDD_HHMMSS.sql</pre>
+
+    <h3>How to restore a backup (PostgreSQL)?</h3>
+    <pre style="background-color: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto;">
+# Using psql:
+psql [DATABASE_URL] &lt; bowl_pool_backup_YYYYMMDD_HHMMSS.sql</pre>
+
+    <h3>Recommended backup schedule</h3>
+    <ul>
+        <li>Before bowl season starts (after all games are configured)</li>
+        <li>After picks lock (to preserve all participant picks)</li>
+        <li>Daily during bowl season (to preserve scores as they're entered)</li>
+        <li>After bowl season ends (final results)</li>
+    </ul>
+
+    <h3>Storage recommendations</h3>
+    <p>Store backups in multiple locations:</p>
+    <ul>
+        <li>Your local computer</li>
+        <li>Cloud storage (Google Drive, Dropbox, etc.)</li>
+        <li>External drive for long-term archiving</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Database Information</h2>
+    <table>
+        <tr>
+            <th>Database Type</th>
+            <td>
+                {% if config.SQLALCHEMY_DATABASE_URI.startswith('sqlite') %}
+                SQLite
+                {% elif config.SQLALCHEMY_DATABASE_URI.startswith('postgresql') %}
+                PostgreSQL
+                {% else %}
+                {{ config.SQLALCHEMY_DATABASE_URI.split(':')[0] }}
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>Backup Method</th>
+            <td>
+                {% if config.SQLALCHEMY_DATABASE_URI.startswith('sqlite') %}
+                SQL dump using sqlite3 .dump command
+                {% elif config.SQLALCHEMY_DATABASE_URI.startswith('postgresql') %}
+                SQL dump using pg_dump command
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>Current Time</th>
+            <td>{{ current_datetime.strftime('%Y-%m-%d %H:%M:%S UTC') if current_datetime else 'N/A' }}</td>
+        </tr>
+    </table>
+</div>
+{% endblock %}

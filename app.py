@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, Response
 from flask_wtf.csrf import CSRFProtect
 from models import db, Bowl, Participant, Pick, Settings
 from config import Config
@@ -8,6 +8,9 @@ import random
 import os
 import requests
 import re
+import subprocess
+import tempfile
+import shutil
 from email_validator import validate_email, EmailNotValidError
 
 
@@ -739,6 +742,110 @@ def admin_email_participants():
                            participants=participants,
                            participants_with_email=participants_with_email,
                            participants_without_email=participants_without_email)
+
+
+@app.route('/admin/backup')
+@admin_required
+def admin_backup():
+    """Admin page to download database backup"""
+    return render_template('admin_backup.html', current_datetime=get_current_datetime())
+
+
+@app.route('/admin/backup/download')
+@admin_required
+def admin_backup_download():
+    """Download database backup"""
+    try:
+        db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
+
+        # Handle SQLite databases
+        if db_uri.startswith('sqlite:///'):
+            # Get the database file path
+            db_path = db_uri.replace('sqlite:///', '')
+            if not os.path.isabs(db_path):
+                # Relative path - resolve it
+                db_path = os.path.join(os.getcwd(), db_path)
+
+            if not os.path.exists(db_path):
+                flash('Database file not found', 'error')
+                return redirect(url_for('admin_backup'))
+
+            # Create SQL dump using sqlite3 command
+            try:
+                result = subprocess.run(
+                    ['sqlite3', db_path, '.dump'],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                if result.returncode != 0:
+                    raise Exception(f"sqlite3 dump failed: {result.stderr}")
+
+                sql_dump = result.stdout
+                filename = f'bowl_pool_backup_{timestamp}.sql'
+
+                return Response(
+                    sql_dump,
+                    mimetype='application/sql',
+                    headers={'Content-Disposition': f'attachment; filename={filename}'}
+                )
+            except FileNotFoundError:
+                # sqlite3 command not found, fall back to copying the raw database file
+                filename = f'bowl_pool_backup_{timestamp}.db'
+                return send_file(
+                    db_path,
+                    as_attachment=True,
+                    download_name=filename,
+                    mimetype='application/x-sqlite3'
+                )
+
+        # Handle PostgreSQL databases
+        elif db_uri.startswith('postgresql://'):
+            # Create temporary file for dump
+            temp_dir = tempfile.mkdtemp()
+            try:
+                dump_file = os.path.join(temp_dir, f'bowl_pool_backup_{timestamp}.sql')
+
+                # Use pg_dump command
+                result = subprocess.run(
+                    ['pg_dump', db_uri, '-f', dump_file],
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
+
+                if result.returncode != 0:
+                    raise Exception(f"pg_dump failed: {result.stderr}")
+
+                if not os.path.exists(dump_file):
+                    raise Exception("Dump file was not created")
+
+                # Read the dump file and return it
+                with open(dump_file, 'r') as f:
+                    sql_dump = f.read()
+
+                filename = f'bowl_pool_backup_{timestamp}.sql'
+
+                return Response(
+                    sql_dump,
+                    mimetype='application/sql',
+                    headers={'Content-Disposition': f'attachment; filename={filename}'}
+                )
+            finally:
+                # Clean up temporary directory
+                shutil.rmtree(temp_dir, ignore_errors=True)
+
+        else:
+            flash('Unsupported database type for backup', 'error')
+            return redirect(url_for('admin_backup'))
+
+    except subprocess.TimeoutExpired:
+        flash('Database backup timed out', 'error')
+        return redirect(url_for('admin_backup'))
+    except Exception as e:
+        flash(f'Error creating backup: {str(e)}', 'error')
+        return redirect(url_for('admin_backup'))
 
 
 if __name__ == '__main__':
