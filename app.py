@@ -4,6 +4,8 @@ from config import Config
 from functools import wraps
 from datetime import datetime
 import random
+import os
+import requests
 
 
 app = Flask(__name__)
@@ -537,6 +539,89 @@ def admin_participants():
         editing_participant = Participant.query.get(edit_participant_id)
 
     return render_template('admin_participants.html', participants=participants, editing_participant=editing_participant)
+
+
+def send_participant_email(participant, base_url):
+    """Send login email to a single participant using Mailgun API"""
+    api_key = os.environ.get('MAILGUN_API_KEY')
+    if not api_key:
+        raise ValueError('MAILGUN_API_KEY environment variable not set')
+
+    login_url = f"{base_url}/login?token={participant.invite_token}"
+
+    email_body = f"""Hello {participant.get_display_name()},
+
+Welcome to the Bowl Pool! You can access your account and make your picks using the following link:
+
+{login_url}
+
+Good luck!
+
+Bowl Pool Admin
+"""
+
+    response = requests.post(
+        "https://api.mailgun.net/v3/mg.libertyfamily.us/messages",
+        auth=("api", api_key),
+        data={
+            "from": "Bowl Pool <postmaster@mg.libertyfamily.us>",
+            "to": f"{participant.name} <{participant.email}>",
+            "subject": "Bowl Pool - Your Login Link",
+            "text": email_body
+        }
+    )
+
+    return response
+
+
+@app.route('/admin/email-participants', methods=['GET', 'POST'])
+@admin_required
+def admin_email_participants():
+    """Admin page to email all participants their login URLs"""
+    if request.method == 'POST':
+        # Get base URL from request
+        base_url = request.url_root.rstrip('/')
+
+        participants = Participant.query.all()
+        success_count = 0
+        error_count = 0
+        errors = []
+
+        for participant in participants:
+            if not participant.email:
+                errors.append(f"{participant.name}: No email address")
+                error_count += 1
+                continue
+
+            try:
+                response = send_participant_email(participant, base_url)
+                if response.status_code == 200:
+                    success_count += 1
+                else:
+                    errors.append(f"{participant.name}: {response.status_code} - {response.text}")
+                    error_count += 1
+            except Exception as e:
+                errors.append(f"{participant.name}: {str(e)}")
+                error_count += 1
+
+        if success_count > 0:
+            flash(f'Successfully sent {success_count} email(s)', 'success')
+        if error_count > 0:
+            flash(f'Failed to send {error_count} email(s)', 'error')
+            for error in errors:
+                flash(error, 'error')
+
+        return redirect(url_for('admin_email_participants'))
+
+    # GET request - show the page
+    participants = Participant.query.all()
+    participants_with_email = [p for p in participants if p.email]
+    participants_without_email = [p for p in participants if not p.email]
+
+    return render_template('admin_email_participants.html',
+                           participants=participants,
+                           participants_with_email=participants_with_email,
+                           participants_without_email=participants_without_email)
 
 
 if __name__ == '__main__':

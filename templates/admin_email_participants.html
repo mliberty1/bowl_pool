@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Admin: Email Participants - Bowl Pool{% endblock %}
+
+{% block content %}
+<h1>Admin: Email Participants</h1>
+
+<p><a href="{{ url_for('admin_index') }}">&larr; Back to Admin Dashboard</a></p>
+
+<div class="card">
+    <h2>Send Login Links to All Participants</h2>
+    <p>This tool will send an email to all participants who have an email address on file. Each email will contain their unique login link.</p>
+
+    {% if participants_without_email %}
+    <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 15px; margin: 20px 0;">
+        <strong>Warning:</strong> The following participants do not have email addresses and will be skipped:
+        <ul>
+            {% for participant in participants_without_email %}
+            <li>{{ participant.name }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 5px; padding: 15px; margin: 20px 0;">
+        <strong>Ready to send:</strong> {{ participants_with_email|length }} email(s) will be sent.
+    </div>
+
+    <form method="POST" onsubmit="return confirm('Are you sure you want to send login emails to {{ participants_with_email|length }} participant(s)?');">
+        <button type="submit" class="btn btn-success" {% if not participants_with_email %}disabled{% endif %}>
+            Send Login Emails
+        </button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Participant Email Status</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Login URL</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for participant in participants %}
+            <tr>
+                <td>{{ participant.name }}</td>
+                <td>{{ participant.email or '-' }}</td>
+                <td>
+                    {% set login_url = url_for('login', token=participant.invite_token, _external=True) %}
+                    <input type="text" value="{{ login_url }}" readonly
+                           style="width: 100%; font-family: monospace; font-size: 0.85em;"
+                           onclick="this.select()">
+                </td>
+                <td>
+                    {% if participant.email %}
+                    <span style="color: #27ae60; font-weight: bold;">✓ Ready</span>
+                    {% else %}
+                    <span style="color: #e74c3c; font-weight: bold;">✗ No Email</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Email Preview</h2>
+    <p>Each participant will receive an email similar to this:</p>
+    <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; font-family: monospace; white-space: pre-line;">
+<strong>From:</strong> Bowl Pool &lt;postmaster@mg.libertyfamily.us&gt;
+<strong>To:</strong> [Participant Name] &lt;[Participant Email]&gt;
+<strong>Subject:</strong> Bowl Pool - Your Login Link
+
+Hello [Participant Name],
+
+Welcome to the Bowl Pool! You can access your account and make your picks using the following link:
+
+[Login URL]
+
+Good luck!
+
+Bowl Pool Admin
+    </div>
+</div>
+{% endblock %}
