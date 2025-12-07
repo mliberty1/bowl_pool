@@ -414,7 +414,8 @@ def admin_bowls():
                 datetime_utc=datetime.fromisoformat(request.form.get('datetime_utc')),
                 favored_team=request.form.get('favored_team'),
                 opponent=request.form.get('opponent'),
-                spread=float(request.form.get('spread'))
+                spread=float(request.form.get('spread')),
+                tv_channel=request.form.get('tv_channel')
             )
             db.session.add(bowl)
             db.session.commit()
@@ -429,6 +430,7 @@ def admin_bowls():
                 bowl.favored_team = request.form.get('favored_team')
                 bowl.opponent = request.form.get('opponent')
                 bowl.spread = float(request.form.get('spread'))
+                bowl.tv_channel = request.form.get('tv_channel')
                 db.session.commit()
                 flash(f'Updated {bowl.name}', 'success')
 

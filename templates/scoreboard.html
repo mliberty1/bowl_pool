@@ -141,6 +141,14 @@
             <tr>
                 <td class="game-info-cell">
                     <strong>{{ bowl.name }}</strong>
+                    <div style="font-size: 0.75em; color: #666; margin-top: 3px;">
+                        <span class="game-time" data-utc="{{ bowl.datetime_utc.isoformat() }}">
+                            {{ bowl.datetime_utc.strftime('%b %d, %I:%M %p UTC') }}
+                        </span>
+                        {% if bowl.tv_channel %}
+                        <span style="margin-left: 10px; font-weight: bold;">{{ bowl.tv_channel }}</span>
+                        {% endif %}
+                    </div>
                     <div style="font-size: 0.85em; margin-top: 5px;">
                         {% if bowl.status == 'final' and bowl.favored_team_score is not none %}
                             {% set winner = bowl.get_winner() %}
@@ -227,6 +235,26 @@
 
 {% block extra_js %}
 <script>
+// Convert UTC times to local timezone
+document.addEventListener('DOMContentLoaded', function() {
+    const gameTimes = document.querySelectorAll('.game-time');
+    gameTimes.forEach(function(timeElement) {
+        const utcTime = timeElement.getAttribute('data-utc');
+        if (utcTime) {
+            const date = new Date(utcTime);
+            // Format: "Dec 20, 3:30 PM EST"
+            const options = {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                timeZoneName: 'short'
+            };
+            timeElement.textContent = date.toLocaleString('en-US', options);
+        }
+    });
+});
+
 let showRunningTotal = false;
 const runningTotals = {};
 

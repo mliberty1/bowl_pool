@@ -38,6 +38,7 @@ class Bowl(db.Model):
     opponent_score = db.Column(db.Integer, nullable=True)
     status = db.Column(db.String(20), nullable=False, default='not_started')  # not_started, in_progress, final, canceled
     is_ignored = db.Column(db.Boolean, default=False, nullable=False)
+    tv_channel = db.Column(db.String(50), nullable=True)  # TV channel (e.g., "ESPN", "ABC", "FOX")
 
     # Relationships
     picks = db.relationship('Pick', back_populates='bowl', cascade='all, delete-orphan')

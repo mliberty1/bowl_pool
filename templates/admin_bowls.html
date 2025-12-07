@@ -42,6 +42,11 @@
             <input type="number" id="edit_spread" name="spread" step="0.5" value="{{ editing_bowl.spread }}" required>
         </div>
 
+        <div class="form-group">
+            <label for="edit_tv_channel">TV Channel (optional):</label>
+            <input type="text" id="edit_tv_channel" name="tv_channel" value="{{ editing_bowl.tv_channel or '' }}" placeholder="e.g., ESPN, ABC, FOX">
+        </div>
+
         <button type="submit" class="btn btn-success">Save Changes</button>
         <a href="{{ url_for('admin_bowls') }}" class="btn">Cancel</a>
     </form>
@@ -78,6 +83,11 @@
         <div class="form-group">
             <label for="spread">Spread (favored team adjustment, e.g., -3.5):</label>
             <input type="number" id="spread" name="spread" step="0.5" required>
+        </div>
+
+        <div class="form-group">
+            <label for="tv_channel">TV Channel (optional):</label>
+            <input type="text" id="tv_channel" name="tv_channel" placeholder="e.g., ESPN, ABC, FOX">
         </div>
 
         <button type="submit" class="btn btn-success">Add Bowl Game</button>
