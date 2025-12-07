@@ -175,6 +175,34 @@
     </style>
     {% block extra_css %}{% endblock %}
 </head>
+    {% block scripts %}
+    <script type="text/javascript">
+      document.addEventListener('DOMContentLoaded', function () {
+        const formatter = new Intl.DateTimeFormat(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          timeZoneName: 'short'
+        });
+
+        document.querySelectorAll('.game-time[data-utc]').forEach(function (el) {
+          const utcString = el.getAttribute('data-utc');
+          if (!utcString) return;
+
+          const date = new Date(utcString);
+          if (isNaN(date.getTime())) {
+            // If parsing failed, leave fallback text
+            return;
+          }
+
+          // Render in the user's local timezone
+          el.textContent = formatter.format(date);
+        });
+      });
+    </script>
+    {% endblock %}
 <body>
     <nav>
         <div class="nav-content">

@@ -2,7 +2,7 @@ services:
   - type: web
     name: bowl-pool
     runtime: python
-    buildCommand: "pip install -r requirements.txt && python init_db.py"
+    buildCommand: "pip install -r requirements.txt"
     startCommand: "gunicorn app:app"
     envVars:
       - key: SECRET_KEY
@@ -12,5 +12,5 @@ services:
     # Persist the instance folder where SQLite database is stored
     disk:
       name: bowl-pool-data
-      mountPath: /opt/render/project/src/instance
+      mountPath: /var/data/instance
       sizeGB: 1

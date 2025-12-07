@@ -1,3 +1,11 @@
+# Welcome to the Simple Bowl Pool Manager
+
+This project contains a very simple bowl pool manager suitable
+for running a small family NCAA men's football bowl pool.
+The project uses Python + Flask.  The default deployment
+is to [Render](https://render.com) using sqlite mounted
+on a persistent volume.
+
 
 # Motivation
 

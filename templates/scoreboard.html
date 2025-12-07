@@ -142,7 +142,7 @@
                 <td class="game-info-cell">
                     <strong>{{ bowl.name }}</strong>
                     <div style="font-size: 0.75em; color: #666; margin-top: 3px;">
-                        <span class="game-time" data-utc="{{ bowl.datetime_utc.isoformat() }}">
+                        <span class="game-time" data-utc="{{ bowl.datetime_utc.isoformat() }}Z">
                             {{ bowl.datetime_utc.strftime('%b %d, %I:%M %p UTC') }}
                         </span>
                         {% if bowl.tv_channel %}
