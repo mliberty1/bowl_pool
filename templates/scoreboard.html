@@ -86,6 +86,33 @@
         margin-left: 10px;
         cursor: pointer;
     }
+
+    .team-score {
+        display: block;
+        padding: 3px 5px;
+        margin: 2px 0;
+        border-radius: 3px;
+    }
+
+    .team-winner {
+        background-color: #d4edda;
+        color: #155724;
+        font-weight: bold;
+    }
+
+    .team-loser {
+        background-color: #f8f9fa;
+        color: #6c757d;
+    }
+
+    .team-push {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .game-info-cell {
+        min-width: 250px;
+    }
 </style>
 {% endblock %}
 
@@ -112,16 +139,29 @@
         <tbody>
             {% for bowl in bowls %}
             <tr>
-                <td>
-                    <strong>{{ bowl.name }}</strong><br>
-                    <small>{{ bowl.favored_team }} ({{ bowl.spread }}) vs {{ bowl.opponent }}</small><br>
-                    {% if bowl.status == 'final' %}
-                        <small><strong>Final: {{ bowl.favored_team_score }} - {{ bowl.opponent_score }}</strong></small>
-                    {% elif bowl.status == 'in_progress' %}
-                        <small><em>In Progress</em></small>
-                    {% elif bowl.status == 'canceled' %}
-                        <small><em>Canceled</em></small>
-                    {% endif %}
+                <td class="game-info-cell">
+                    <strong>{{ bowl.name }}</strong>
+                    <div style="font-size: 0.85em; margin-top: 5px;">
+                        {% if bowl.status == 'final' and bowl.favored_team_score is not none %}
+                            {% set winner = bowl.get_winner() %}
+                            <span class="team-score {% if winner == 'favored' %}team-winner{% elif winner == 'push' %}team-push{% else %}team-loser{% endif %}">
+                                {{ bowl.favored_team }}: {{ bowl.favored_team_score }}
+                                {% if bowl.spread < 0 %}({{ bowl.spread }}){% endif %}
+                            </span>
+                            <span class="team-score {% if winner == 'opponent' %}team-winner{% elif winner == 'push' %}team-push{% else %}team-loser{% endif %}">
+                                {{ bowl.opponent }}: {{ bowl.opponent_score }}
+                                {% if bowl.spread > 0 %}(+{{ bowl.spread }}){% endif %}
+                            </span>
+                        {% elif bowl.status == 'in_progress' %}
+                            <small>{{ bowl.favored_team }} ({{ bowl.spread }}) vs {{ bowl.opponent }}</small><br>
+                            <small><em>In Progress</em></small>
+                        {% elif bowl.status == 'canceled' %}
+                            <small>{{ bowl.favored_team }} ({{ bowl.spread }}) vs {{ bowl.opponent }}</small><br>
+                            <small><em>Canceled</em></small>
+                        {% else %}
+                            <small>{{ bowl.favored_team }} ({{ bowl.spread }}) vs {{ bowl.opponent }}</small>
+                        {% endif %}
+                    </div>
                 </td>
                 {% for participant in participants %}
                 <td class="pick-cell
@@ -154,10 +194,12 @@
                             {% else %}
                                 {{ bowl.opponent }}
                             {% endif %}
-                            <br>
-                            <span class="score-display" data-game-score="{{ scores[participant.id].get(bowl.id, 0) }}">
-                                {% if scores[participant.id].get(bowl.id, 0) > 0 %}+{% endif %}{{ scores[participant.id].get(bowl.id, 0) }}
-                            </span>
+                            {% if bowl.status == 'final' %}
+                                <br>
+                                <span class="score-display" data-game-score="{{ scores[participant.id].get(bowl.id, 0) }}">
+                                    {% if scores[participant.id].get(bowl.id, 0) > 0 %}+{% endif %}{{ scores[participant.id].get(bowl.id, 0) }}
+                                </span>
+                            {% endif %}
                         {% else %}
                             <small><em>Hidden</em></small>
                         {% endif %}
