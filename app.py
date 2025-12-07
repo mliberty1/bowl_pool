@@ -3,6 +3,7 @@ from models import db, Bowl, Participant, Pick
 from config import Config
 from functools import wraps
 from datetime import datetime
+import random
 
 
 app = Flask(__name__)
@@ -50,10 +51,10 @@ def picks_are_locked():
 
 def calculate_scores():
     """
-    Calculate scores for all participants for all bowls.
+    Calculate scores for all active participants for all bowls.
     Returns a dict: {participant_id: {bowl_id: score, 'total': total_score}}
     """
-    participants = Participant.query.all()
+    participants = Participant.query.filter_by(is_active=True).all()
     bowls = Bowl.query.order_by(Bowl.datetime_utc).all()
 
     scores = {}
@@ -170,51 +171,12 @@ def profile():
     return render_template('profile.html', participant=participant)
 
 
-@app.route('/picks', methods=['GET', 'POST'])
+@app.route('/picks', methods=['GET'])
 @login_required
 def picks():
     """Entry form for participants to make their picks"""
     participant = get_current_participant()
     locked = picks_are_locked()
-
-    if request.method == 'POST' and not locked:
-        # Process picks submission
-        bowls = Bowl.query.all()
-        errors = []
-
-        # Validate all picks are made
-        for bowl in bowls:
-            pick_value = request.form.get(f'pick_{bowl.id}')
-            if not pick_value or pick_value not in ['favored', 'opponent']:
-                errors.append(f'Must pick a winner for {bowl.name}')
-
-        if errors:
-            for error in errors:
-                flash(error, 'error')
-        else:
-            # Save picks
-            for bowl in bowls:
-                pick_value = request.form.get(f'pick_{bowl.id}')
-
-                # Update or create pick
-                existing_pick = Pick.query.filter_by(
-                    participant_id=participant.id,
-                    bowl_id=bowl.id
-                ).first()
-
-                if existing_pick:
-                    existing_pick.picked_team = pick_value
-                else:
-                    new_pick = Pick(
-                        participant_id=participant.id,
-                        bowl_id=bowl.id,
-                        picked_team=pick_value
-                    )
-                    db.session.add(new_pick)
-
-            db.session.commit()
-            flash('Your picks have been saved!', 'success')
-            return redirect(url_for('picks'))
 
     # Get bowls and current picks
     bowls = Bowl.query.order_by(Bowl.datetime_utc).all()
@@ -222,17 +184,136 @@ def picks():
     for pick in participant.picks:
         current_picks[pick.bowl_id] = pick.picked_team
 
+    # Check if all picks are made
+    all_picks_made = len(current_picks) == len(bowls)
+
     return render_template('picks.html',
                            participant=participant,
                            bowls=bowls,
                            current_picks=current_picks,
-                           locked=locked)
+                           locked=locked,
+                           all_picks_made=all_picks_made)
+
+
+@app.route('/api/save-pick', methods=['POST'])
+@login_required
+def save_pick():
+    """Auto-save a single pick"""
+    participant = get_current_participant()
+    locked = picks_are_locked()
+
+    if locked:
+        return jsonify({'success': False, 'error': 'Picks are locked'}), 400
+
+    data = request.get_json()
+    bowl_id = data.get('bowl_id')
+    picked_team = data.get('picked_team')
+
+    if not bowl_id or picked_team not in ['favored', 'opponent']:
+        return jsonify({'success': False, 'error': 'Invalid data'}), 400
+
+    # Update or create pick
+    existing_pick = Pick.query.filter_by(
+        participant_id=participant.id,
+        bowl_id=bowl_id
+    ).first()
+
+    if existing_pick:
+        existing_pick.picked_team = picked_team
+    else:
+        new_pick = Pick(
+            participant_id=participant.id,
+            bowl_id=bowl_id,
+            picked_team=picked_team
+        )
+        db.session.add(new_pick)
+
+    # Check if all picks are now made
+    bowls = Bowl.query.all()
+    total_bowls = len(bowls)
+    total_picks = Pick.query.filter_by(participant_id=participant.id).count()
+
+    # Set is_active to true if all picks are made
+    if total_picks == total_bowls:
+        participant.is_active = True
+    else:
+        participant.is_active = False
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'is_active': participant.is_active,
+        'total_picks': total_picks,
+        'total_bowls': total_bowls
+    })
+
+
+@app.route('/api/clear-picks', methods=['POST'])
+@login_required
+def clear_picks():
+    """Clear all picks"""
+    participant = get_current_participant()
+    locked = picks_are_locked()
+
+    if locked:
+        return jsonify({'success': False, 'error': 'Picks are locked'}), 400
+
+    # Delete all picks for this participant
+    Pick.query.filter_by(participant_id=participant.id).delete()
+
+    # Set is_active to false
+    participant.is_active = False
+
+    db.session.commit()
+
+    return jsonify({'success': True})
+
+
+@app.route('/api/randomize-picks', methods=['POST'])
+@login_required
+def randomize_picks():
+    """Randomize all remaining picks"""
+    participant = get_current_participant()
+    locked = picks_are_locked()
+
+    if locked:
+        return jsonify({'success': False, 'error': 'Picks are locked'}), 400
+
+    # Get all bowls
+    bowls = Bowl.query.all()
+
+    # Get current picks
+    current_picks = {pick.bowl_id: pick for pick in participant.picks}
+
+    # Randomize picks for bowls that don't have picks yet
+    for bowl in bowls:
+        if bowl.id not in current_picks:
+            picked_team = random.choice(['favored', 'opponent'])
+            new_pick = Pick(
+                participant_id=participant.id,
+                bowl_id=bowl.id,
+                picked_team=picked_team
+            )
+            db.session.add(new_pick)
+
+    # Set is_active to true (all picks are now made)
+    participant.is_active = True
+
+    db.session.commit()
+
+    # Return all picks for updating the UI
+    all_picks = {}
+    for pick in Pick.query.filter_by(participant_id=participant.id).all():
+        all_picks[pick.bowl_id] = pick.picked_team
+
+    return jsonify({'success': True, 'picks': all_picks})
 
 
 @app.route('/scoreboard')
 def scoreboard():
-    """Display scoreboard with all picks and scores"""
-    participants = Participant.query.all()
+    """Display scoreboard with all active participants' picks and scores"""
+    participants = Participant.query.filter_by(is_active=True).all()
     bowls = Bowl.query.order_by(Bowl.datetime_utc).all()
     locked = picks_are_locked()
 

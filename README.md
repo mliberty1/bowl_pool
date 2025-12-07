@@ -82,6 +82,28 @@ to a more modern web based application.
    * We can copy the display HTML page and host that HTML for historical purposes.
 
 
+## Ease of use
+
+This application is split into several different parts:
+
+1. Participant team selection
+2. Scoreboard
+3. Administration
+
+The ease of use of participant team selection is critical. Participants
+are the general population with no requirements on computer proficiency.
+
+The scoreboard should be simple and easily understood.  However, it
+has limited interactivity which greatly simplifies ease of use.
+
+The administration sections can demand a high level of technical
+proficiency.  While we would prefer to include web-based management,
+direct SQL database management for unusual cases is not a show stopper.
+
+
+
+
+
 # Implementation and Deployment
 
 This application will be implemented in Flask + Python with a Postgres database.

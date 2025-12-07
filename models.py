@@ -52,6 +52,7 @@ class Participant(db.Model):
     email = db.Column(db.String(120), nullable=True)
     invite_token = db.Column(db.String(64), unique=True, nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    is_active = db.Column(db.Boolean, default=False, nullable=False)
 
     # Relationships
     picks = db.relationship('Pick', back_populates='participant', cascade='all, delete-orphan')
