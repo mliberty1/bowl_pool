@@ -7,6 +7,47 @@
 
 <p><a href="{{ url_for('scoreboard') }}">&larr; Back to Scoreboard</a></p>
 
+{% if editing_bowl %}
+<div class="card" style="border: 2px solid #3498db;">
+    <h2>Edit Bowl Game</h2>
+    <form method="POST">
+        <input type="hidden" name="action" value="edit">
+        <input type="hidden" name="bowl_id" value="{{ editing_bowl.id }}">
+
+        <div class="form-group">
+            <label for="edit_name">Bowl Name:</label>
+            <input type="text" id="edit_name" name="name" value="{{ editing_bowl.name }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="edit_datetime_utc">Date/Time (UTC):</label>
+            <input type="datetime-local" id="edit_datetime_utc" name="datetime_utc"
+                   value="{{ editing_bowl.datetime_utc.strftime('%Y-%m-%dT%H:%M') }}" required>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="form-group">
+                <label for="edit_favored_team">Favored Team:</label>
+                <input type="text" id="edit_favored_team" name="favored_team" value="{{ editing_bowl.favored_team }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="edit_opponent">Opponent:</label>
+                <input type="text" id="edit_opponent" name="opponent" value="{{ editing_bowl.opponent }}" required>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="edit_spread">Spread (favored team adjustment, e.g., -3.5):</label>
+            <input type="number" id="edit_spread" name="spread" step="0.5" value="{{ editing_bowl.spread }}" required>
+        </div>
+
+        <button type="submit" class="btn btn-success">Save Changes</button>
+        <a href="{{ url_for('admin_bowls') }}" class="btn">Cancel</a>
+    </form>
+</div>
+{% endif %}
+
 <div class="card">
     <h2>Add New Bowl Game</h2>
     <form method="POST">
@@ -63,6 +104,7 @@
                 <td>{{ bowl.favored_team }} vs {{ bowl.opponent }}</td>
                 <td>{{ bowl.spread }}</td>
                 <td>
+                    <a href="{{ url_for('admin_bowls', edit=bowl.id) }}" class="btn">Edit</a>
                     <form method="POST" style="display: inline;" onsubmit="return confirm('Delete {{ bowl.name }}?');">
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="bowl_id" value="{{ bowl.id }}">

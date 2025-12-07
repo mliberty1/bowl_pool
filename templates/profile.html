@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - Bowl Pool{% endblock %}
+
+{% block content %}
+<h1>My Profile</h1>
+
+<div class="card" style="max-width: 600px;">
+    <h2>Edit Your Information</h2>
+    <p style="margin-bottom: 20px; color: #666;">Update your name, nickname, and email address.</p>
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="name">Full Name:</label>
+            <input type="text" id="name" name="name" value="{{ participant.name }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="nickname">Nickname (optional):</label>
+            <input type="text" id="nickname" name="nickname" value="{{ participant.nickname or '' }}">
+            <small style="color: #666;">This is the name displayed on the scoreboard.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email (optional):</label>
+            <input type="email" id="email" name="email" value="{{ participant.email or '' }}">
+        </div>
+
+        <button type="submit" class="btn btn-success">Save Changes</button>
+        <a href="{{ url_for('picks') }}" class="btn">Cancel</a>
+    </form>
+</div>
+
+<div class="card" style="max-width: 600px; margin-top: 20px; background-color: #f9f9f9;">
+    <h3>Account Information</h3>
+    <p style="margin-bottom: 10px;"><strong>Login URL:</strong></p>
+    <input type="text" value="{{ url_for('login', token=participant.invite_token, _external=True) }}" readonly
+           style="width: 100%; font-family: monospace; font-size: 0.85em;"
+           onclick="this.select()">
+    <p style="margin-top: 15px; color: #666; font-size: 0.9em;">
+        Save this URL to log in again in the future. Do not share it with others.
+    </p>
+    {% if participant.is_admin %}
+    <p style="margin-top: 10px; padding: 10px; background-color: #d1ecf1; border-radius: 4px; color: #0c5460;">
+        <strong>Admin Account:</strong> You have administrator privileges.
+    </p>
+    {% endif %}
+</div>
+{% endblock %}

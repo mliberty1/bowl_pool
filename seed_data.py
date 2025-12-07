@@ -97,19 +97,20 @@ def seed_database():
 
         db.session.commit()
 
-        # Print participant tokens
-        print("\n" + "="*60)
-        print("PARTICIPANT INVITE TOKENS")
-        print("="*60)
+        # Print participant login URLs
+        print("\n" + "="*80)
+        print("PARTICIPANT LOGIN URLs")
+        print("="*80)
         all_participants = Participant.query.all()
         for p in all_participants:
             print(f"\n{p.name} ({p.nickname})")
             print(f"  Admin: {p.is_admin}")
-            print(f"  Token: {p.invite_token}")
+            print(f"  Login URL: http://localhost:5000/login?token={p.invite_token}")
 
-        print("\n" + "="*60)
+        print("\n" + "="*80)
         print(f"Successfully seeded {len(all_participants)} participants and {len(bowls)} bowl games!")
-        print("="*60)
+        print("Copy and paste the login URLs above to automatically log in as each user.")
+        print("="*80)
 
 
 if __name__ == '__main__':

@@ -7,6 +7,41 @@
 
 <p><a href="{{ url_for('scoreboard') }}">&larr; Back to Scoreboard</a></p>
 
+{% if editing_participant %}
+<div class="card" style="border: 2px solid #3498db;">
+    <h2>Edit Participant</h2>
+    <form method="POST">
+        <input type="hidden" name="action" value="edit">
+        <input type="hidden" name="participant_id" value="{{ editing_participant.id }}">
+
+        <div class="form-group">
+            <label for="edit_name">Full Name:</label>
+            <input type="text" id="edit_name" name="name" value="{{ editing_participant.name }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="edit_nickname">Nickname (optional):</label>
+            <input type="text" id="edit_nickname" name="nickname" value="{{ editing_participant.nickname or '' }}">
+        </div>
+
+        <div class="form-group">
+            <label for="edit_email">Email (optional):</label>
+            <input type="email" id="edit_email" name="email" value="{{ editing_participant.email or '' }}">
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="is_admin" {% if editing_participant.is_admin %}checked{% endif %}>
+                Admin privileges
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-success">Save Changes</button>
+        <a href="{{ url_for('admin_participants') }}" class="btn">Cancel</a>
+    </form>
+</div>
+{% endif %}
+
 <div class="card">
     <h2>Add New Participant</h2>
     <form method="POST">
@@ -59,18 +94,18 @@
                 <td>{{ participant.email or '-' }}</td>
                 <td>{{ 'Yes' if participant.is_admin else 'No' }}</td>
                 <td>
-                    <input type="text" value="{{ participant.invite_token }}" readonly
-                           style="width: 300px; font-family: monospace; font-size: 0.85em;"
+                    {% set login_url = url_for('login', token=participant.invite_token, _external=True) %}
+                    <strong>Login URL:</strong><br>
+                    <input type="text" value="{{ login_url }}" readonly
+                           style="width: 100%; font-family: monospace; font-size: 0.85em; margin-top: 5px;"
                            onclick="this.select()">
                     <br>
-                    <small>
-                        <strong>Login URL:</strong>
-                        <a href="{{ url_for('login', _external=True) }}" target="_blank">
-                            {{ url_for('login', _external=True) }}
-                        </a>
-                    </small>
+                    <a href="{{ login_url }}" target="_blank" class="btn" style="margin-top: 5px; font-size: 0.85em;">
+                        Test Login Link
+                    </a>
                 </td>
                 <td>
+                    <a href="{{ url_for('admin_participants', edit=participant.id) }}" class="btn">Edit</a>
                     <form method="POST" style="display: inline;" onsubmit="return confirm('Delete {{ participant.name }}?');">
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="participant_id" value="{{ participant.id }}">

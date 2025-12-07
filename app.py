@@ -118,6 +118,17 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Login using invite token"""
+    # Check for token in URL query parameter first
+    token_from_url = request.args.get('token', '').strip()
+    if token_from_url:
+        participant = Participant.query.filter_by(invite_token=token_from_url).first()
+        if participant:
+            session['participant_id'] = participant.id
+            flash(f'Welcome, {participant.get_display_name()}!', 'success')
+            return redirect(url_for('picks'))
+        else:
+            flash('Invalid invite token', 'error')
+
     if request.method == 'POST':
         token = request.form.get('token', '').strip()
         participant = Participant.query.filter_by(invite_token=token).first()
@@ -138,6 +149,25 @@ def logout():
     session.pop('participant_id', None)
     flash('You have been logged out', 'info')
     return redirect(url_for('login'))
+
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    """Edit participant profile"""
+    participant = get_current_participant()
+
+    if request.method == 'POST':
+        # Update participant info
+        participant.name = request.form.get('name')
+        participant.nickname = request.form.get('nickname')
+        participant.email = request.form.get('email')
+
+        db.session.commit()
+        flash('Your profile has been updated!', 'success')
+        return redirect(url_for('profile'))
+
+    return render_template('profile.html', participant=participant)
 
 
 @app.route('/picks', methods=['GET', 'POST'])
@@ -277,6 +307,18 @@ def admin_bowls():
             db.session.commit()
             flash(f'Added {bowl.name}', 'success')
 
+        elif action == 'edit':
+            bowl_id = request.form.get('bowl_id')
+            bowl = Bowl.query.get(bowl_id)
+            if bowl:
+                bowl.name = request.form.get('name')
+                bowl.datetime_utc = datetime.fromisoformat(request.form.get('datetime_utc'))
+                bowl.favored_team = request.form.get('favored_team')
+                bowl.opponent = request.form.get('opponent')
+                bowl.spread = float(request.form.get('spread'))
+                db.session.commit()
+                flash(f'Updated {bowl.name}', 'success')
+
         elif action == 'delete':
             bowl_id = request.form.get('bowl_id')
             bowl = Bowl.query.get(bowl_id)
@@ -288,7 +330,12 @@ def admin_bowls():
         return redirect(url_for('admin_bowls'))
 
     bowls = Bowl.query.order_by(Bowl.datetime_utc).all()
-    return render_template('admin_bowls.html', bowls=bowls)
+    edit_bowl_id = request.args.get('edit', type=int)
+    editing_bowl = None
+    if edit_bowl_id:
+        editing_bowl = Bowl.query.get(edit_bowl_id)
+
+    return render_template('admin_bowls.html', bowls=bowls, editing_bowl=editing_bowl)
 
 
 @app.route('/admin/participants', methods=['GET', 'POST'])
@@ -311,6 +358,17 @@ def admin_participants():
             db.session.commit()
             flash(f'Added {participant.name}', 'success')
 
+        elif action == 'edit':
+            participant_id = request.form.get('participant_id')
+            participant = Participant.query.get(participant_id)
+            if participant:
+                participant.name = request.form.get('name')
+                participant.nickname = request.form.get('nickname')
+                participant.email = request.form.get('email')
+                participant.is_admin = request.form.get('is_admin') == 'on'
+                db.session.commit()
+                flash(f'Updated {participant.name}', 'success')
+
         elif action == 'delete':
             participant_id = request.form.get('participant_id')
             participant = Participant.query.get(participant_id)
@@ -322,7 +380,12 @@ def admin_participants():
         return redirect(url_for('admin_participants'))
 
     participants = Participant.query.all()
-    return render_template('admin_participants.html', participants=participants)
+    edit_participant_id = request.args.get('edit', type=int)
+    editing_participant = None
+    if edit_participant_id:
+        editing_participant = Participant.query.get(edit_participant_id)
+
+    return render_template('admin_participants.html', participants=participants, editing_participant=editing_participant)
 
 
 if __name__ == '__main__':
