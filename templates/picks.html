@@ -170,6 +170,11 @@
 <script>
 let isSaving = false;
 
+// Get CSRF token from meta tag
+function getCsrfToken() {
+    return "{{ csrf_token() }}";
+}
+
 function updateStatus(isActive, totalPicks, totalBowls) {
     const statusIndicator = document.getElementById('status-indicator');
     if (totalPicks === totalBowls && isActive) {
@@ -216,6 +221,7 @@ function selectTeam(bowlId, team) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
         },
         body: JSON.stringify({
             bowl_id: bowlId,
@@ -248,6 +254,7 @@ function clearPicks() {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
         }
     })
     .then(response => response.json())
@@ -280,6 +287,7 @@ function randomizePicks() {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
         }
     })
     .then(response => response.json())

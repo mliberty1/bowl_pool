@@ -10,6 +10,7 @@
     <p style="margin-bottom: 20px; color: #666;">Update your name, nickname, and email address.</p>
 
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="form-group">
             <label for="name">Full Name:</label>
             <input type="text" id="name" name="name" value="{{ participant.name }}" required>

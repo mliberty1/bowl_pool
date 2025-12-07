@@ -11,6 +11,7 @@
 <div class="card" style="border: 2px solid #3498db;">
     <h2>Edit Participant</h2>
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="hidden" name="action" value="edit">
         <input type="hidden" name="participant_id" value="{{ editing_participant.id }}">
 
@@ -45,6 +46,7 @@
 <div class="card">
     <h2>Add New Participant</h2>
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="hidden" name="action" value="add">
 
         <div class="form-group">
@@ -107,6 +109,7 @@
                 <td>
                     <a href="{{ url_for('admin_participants', edit=participant.id) }}" class="btn">Edit</a>
                     <form method="POST" style="display: inline;" onsubmit="return confirm('Delete {{ participant.name }}?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="participant_id" value="{{ participant.id }}">
                         <button type="submit" class="btn btn-danger">Delete</button>

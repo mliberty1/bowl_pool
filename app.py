@@ -1,16 +1,55 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask_wtf.csrf import CSRFProtect
 from models import db, Bowl, Participant, Pick, Settings
 from config import Config
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timezone
 import random
 import os
 import requests
+import re
+from email_validator import validate_email, EmailNotValidError
 
 
 app = Flask(__name__)
 app.config.from_object(Config)
 db.init_app(app)
+csrf = CSRFProtect(app)
+
+
+# Input validation helpers
+def validate_string_length(value, field_name, max_length):
+    """Validate string length and return sanitized value"""
+    if not value:
+        return None
+    value = str(value).strip()
+    if len(value) > max_length:
+        raise ValueError(f"{field_name} must be {max_length} characters or less")
+    return value if value else None
+
+
+def validate_and_sanitize_email(email):
+    """Validate email format and sanitize"""
+    if not email:
+        return None
+    email = str(email).strip()
+    if not email:
+        return None
+    try:
+        # Validate email format
+        validated = validate_email(email, check_deliverability=False)
+        return validated.normalized
+    except EmailNotValidError as e:
+        raise ValueError(f"Invalid email address: {str(e)}")
+
+
+def sanitize_name(name):
+    """Remove newlines and control characters from names to prevent header injection"""
+    if not name:
+        return name
+    # Remove newlines, carriage returns, and other control characters
+    name = re.sub(r'[\r\n\t\x00-\x1f\x7f-\x9f]', '', str(name))
+    return name.strip()
 
 
 @app.context_processor
@@ -32,7 +71,7 @@ def get_current_datetime():
     settings = Settings.get_instance()
     if settings.override_datetime:
         return settings.override_datetime
-    return datetime.utcnow()
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 # Authentication decorator
@@ -149,7 +188,6 @@ def login():
         participant = Participant.query.filter_by(invite_token=token_from_url).first()
         if participant:
             session['participant_id'] = participant.id
-            session['is_admin'] = participant.is_admin
             flash(f'Welcome, {participant.get_display_name()}!', 'success')
             return redirect(url_for('picks'))
         else:
@@ -161,7 +199,6 @@ def login():
 
         if participant:
             session['participant_id'] = participant.id
-            session['is_admin'] = participant.is_admin
             flash(f'Welcome, {participant.get_display_name()}!', 'success')
             return redirect(url_for('picks'))
         else:
@@ -174,7 +211,6 @@ def login():
 def logout():
     """Logout"""
     session.pop('participant_id', None)
-    session.pop('is_admin', None)
     flash('You have been logged out', 'info')
     return redirect(url_for('login'))
 
@@ -186,14 +222,26 @@ def profile():
     participant = get_current_participant()
 
     if request.method == 'POST':
-        # Update participant info
-        participant.name = request.form.get('name')
-        participant.nickname = request.form.get('nickname')
-        participant.email = request.form.get('email')
+        try:
+            # Validate and update participant info
+            name = validate_string_length(request.form.get('name'), 'Name', 100)
+            if not name:
+                flash('Name is required', 'error')
+                return redirect(url_for('profile'))
 
-        db.session.commit()
-        flash('Your profile has been updated!', 'success')
-        return redirect(url_for('profile'))
+            nickname = validate_string_length(request.form.get('nickname'), 'Nickname', 50)
+            email = validate_and_sanitize_email(request.form.get('email'))
+
+            participant.name = sanitize_name(name)
+            participant.nickname = sanitize_name(nickname) if nickname else None
+            participant.email = email
+
+            db.session.commit()
+            flash('Your profile has been updated!', 'success')
+            return redirect(url_for('profile'))
+        except ValueError as e:
+            flash(str(e), 'error')
+            return redirect(url_for('profile'))
 
     return render_template('profile.html', participant=participant)
 
@@ -238,6 +286,11 @@ def save_pick():
 
     if not bowl_id or picked_team not in ['favored', 'opponent']:
         return jsonify({'success': False, 'error': 'Invalid data'}), 400
+
+    # Validate bowl exists
+    bowl = Bowl.query.get(bowl_id)
+    if not bowl:
+        return jsonify({'success': False, 'error': 'Bowl game not found'}), 404
 
     # Update or create pick
     existing_pick = Pick.query.filter_by(
@@ -409,40 +462,77 @@ def admin_bowls():
     if request.method == 'POST':
         action = request.form.get('action')
 
-        if action == 'add':
-            # Add new bowl
-            bowl = Bowl(
-                name=request.form.get('name'),
-                datetime_utc=datetime.fromisoformat(request.form.get('datetime_utc')),
-                favored_team=request.form.get('favored_team'),
-                opponent=request.form.get('opponent'),
-                spread=float(request.form.get('spread')),
-                tv_channel=request.form.get('tv_channel')
-            )
-            db.session.add(bowl)
-            db.session.commit()
-            flash(f'Added {bowl.name}', 'success')
+        try:
+            if action == 'add':
+                # Validate inputs
+                name = validate_string_length(request.form.get('name'), 'Bowl name', 100)
+                favored_team = validate_string_length(request.form.get('favored_team'), 'Favored team', 100)
+                opponent = validate_string_length(request.form.get('opponent'), 'Opponent', 100)
+                tv_channel = validate_string_length(request.form.get('tv_channel'), 'TV channel', 50)
 
-        elif action == 'edit':
-            bowl_id = request.form.get('bowl_id')
-            bowl = Bowl.query.get(bowl_id)
-            if bowl:
-                bowl.name = request.form.get('name')
-                bowl.datetime_utc = datetime.fromisoformat(request.form.get('datetime_utc'))
-                bowl.favored_team = request.form.get('favored_team')
-                bowl.opponent = request.form.get('opponent')
-                bowl.spread = float(request.form.get('spread'))
-                bowl.tv_channel = request.form.get('tv_channel')
-                db.session.commit()
-                flash(f'Updated {bowl.name}', 'success')
+                if not name or not favored_team or not opponent:
+                    flash('Bowl name, favored team, and opponent are required', 'error')
+                    return redirect(url_for('admin_bowls'))
 
-        elif action == 'delete':
-            bowl_id = request.form.get('bowl_id')
-            bowl = Bowl.query.get(bowl_id)
-            if bowl:
-                db.session.delete(bowl)
+                try:
+                    datetime_utc = datetime.fromisoformat(request.form.get('datetime_utc'))
+                except (ValueError, TypeError):
+                    flash('Invalid date/time format', 'error')
+                    return redirect(url_for('admin_bowls'))
+
+                # Add new bowl
+                bowl = Bowl(
+                    name=name,
+                    datetime_utc=datetime_utc,
+                    favored_team=favored_team,
+                    opponent=opponent,
+                    spread=float(request.form.get('spread')),
+                    tv_channel=tv_channel
+                )
+                db.session.add(bowl)
                 db.session.commit()
-                flash(f'Deleted {bowl.name}', 'success')
+                flash(f'Added {bowl.name}', 'success')
+
+            elif action == 'edit':
+                bowl_id = request.form.get('bowl_id')
+                bowl = Bowl.query.get(bowl_id)
+                if bowl:
+                    # Validate inputs
+                    name = validate_string_length(request.form.get('name'), 'Bowl name', 100)
+                    favored_team = validate_string_length(request.form.get('favored_team'), 'Favored team', 100)
+                    opponent = validate_string_length(request.form.get('opponent'), 'Opponent', 100)
+                    tv_channel = validate_string_length(request.form.get('tv_channel'), 'TV channel', 50)
+
+                    if not name or not favored_team or not opponent:
+                        flash('Bowl name, favored team, and opponent are required', 'error')
+                        return redirect(url_for('admin_bowls'))
+
+                    try:
+                        datetime_utc = datetime.fromisoformat(request.form.get('datetime_utc'))
+                    except (ValueError, TypeError):
+                        flash('Invalid date/time format', 'error')
+                        return redirect(url_for('admin_bowls'))
+
+                    bowl.name = name
+                    bowl.datetime_utc = datetime_utc
+                    bowl.favored_team = favored_team
+                    bowl.opponent = opponent
+                    bowl.spread = float(request.form.get('spread'))
+                    bowl.tv_channel = tv_channel
+                    db.session.commit()
+                    flash(f'Updated {bowl.name}', 'success')
+
+            elif action == 'delete':
+                bowl_id = request.form.get('bowl_id')
+                bowl = Bowl.query.get(bowl_id)
+                if bowl:
+                    db.session.delete(bowl)
+                    db.session.commit()
+                    flash(f'Deleted {bowl.name}', 'success')
+
+        except ValueError as e:
+            flash(str(e), 'error')
+            return redirect(url_for('admin_bowls'))
 
         return redirect(url_for('admin_bowls'))
 
@@ -487,7 +577,7 @@ def admin_test_mode():
     return render_template('admin_test_mode.html',
                            settings=settings,
                            current_datetime=get_current_datetime(),
-                           real_datetime=datetime.utcnow(),
+                           real_datetime=datetime.now(timezone.utc).replace(tzinfo=None),
                            first_bowl=first_bowl)
 
 
@@ -498,37 +588,60 @@ def admin_participants():
     if request.method == 'POST':
         action = request.form.get('action')
 
-        if action == 'add':
-            # Add new participant
-            participant = Participant(
-                name=request.form.get('name'),
-                nickname=request.form.get('nickname'),
-                email=request.form.get('email'),
-                invite_token=Participant.generate_token(),
-                is_admin=request.form.get('is_admin') == 'on'
-            )
-            db.session.add(participant)
-            db.session.commit()
-            flash(f'Added {participant.name}', 'success')
+        try:
+            if action == 'add':
+                # Validate inputs
+                name = validate_string_length(request.form.get('name'), 'Name', 100)
+                if not name:
+                    flash('Name is required', 'error')
+                    return redirect(url_for('admin_participants'))
 
-        elif action == 'edit':
-            participant_id = request.form.get('participant_id')
-            participant = Participant.query.get(participant_id)
-            if participant:
-                participant.name = request.form.get('name')
-                participant.nickname = request.form.get('nickname')
-                participant.email = request.form.get('email')
-                participant.is_admin = request.form.get('is_admin') == 'on'
-                db.session.commit()
-                flash(f'Updated {participant.name}', 'success')
+                nickname = validate_string_length(request.form.get('nickname'), 'Nickname', 50)
+                email = validate_and_sanitize_email(request.form.get('email'))
 
-        elif action == 'delete':
-            participant_id = request.form.get('participant_id')
-            participant = Participant.query.get(participant_id)
-            if participant:
-                db.session.delete(participant)
+                # Add new participant
+                participant = Participant(
+                    name=sanitize_name(name),
+                    nickname=sanitize_name(nickname) if nickname else None,
+                    email=email,
+                    invite_token=Participant.generate_token(),
+                    is_admin=request.form.get('is_admin') == 'on'
+                )
+                db.session.add(participant)
                 db.session.commit()
-                flash(f'Deleted {participant.name}', 'success')
+                flash(f'Added {participant.name}', 'success')
+
+            elif action == 'edit':
+                participant_id = request.form.get('participant_id')
+                participant = Participant.query.get(participant_id)
+                if participant:
+                    # Validate inputs
+                    name = validate_string_length(request.form.get('name'), 'Name', 100)
+                    if not name:
+                        flash('Name is required', 'error')
+                        return redirect(url_for('admin_participants'))
+
+                    nickname = validate_string_length(request.form.get('nickname'), 'Nickname', 50)
+                    email = validate_and_sanitize_email(request.form.get('email'))
+
+                    participant.name = sanitize_name(name)
+                    participant.nickname = sanitize_name(nickname) if nickname else None
+                    participant.email = email
+                    participant.is_admin = request.form.get('is_admin') == 'on'
+                    db.session.commit()
+                    flash(f'Updated {participant.name}', 'success')
+
+            elif action == 'delete':
+                participant_id = request.form.get('participant_id')
+                participant = Participant.query.get(participant_id)
+                if participant:
+                    db.session.delete(participant)
+                    db.session.commit()
+                    flash(f'Deleted {participant.name}', 'success')
+
+        except ValueError as e:
+            flash(str(e), 'error')
+            return redirect(url_for('admin_participants'))
 
         return redirect(url_for('admin_participants'))
 
@@ -547,9 +660,13 @@ def send_participant_email(participant, base_url):
     if not api_key:
         raise ValueError('MAILGUN_API_KEY environment variable not set')
 
+    # Sanitize names to prevent email header injection
+    display_name = sanitize_name(participant.get_display_name())
+    participant_name = sanitize_name(participant.name)
+
     login_url = f"{base_url}/login?token={participant.invite_token}"
 
-    email_body = f"""Hello {participant.get_display_name()},
+    email_body = f"""Hello {display_name},
 
 Welcome to the Bowl Pool! You can access your account and make your picks using the following link:
 
@@ -565,7 +682,7 @@ Bowl Pool Admin
         auth=("api", api_key),
         data={
             "from": "Bowl Pool <postmaster@mg.libertyfamily.us>",
-            "to": f"{participant.name} <{participant.email}>",
+            "to": f"{participant_name} <{participant.email}>",
             "subject": "Bowl Pool - Your Login Link",
             "text": email_body
         }

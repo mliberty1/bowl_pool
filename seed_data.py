@@ -100,7 +100,7 @@ def seed_database():
 
         # Print participant login URLs
         # Use environment variable for base URL, default to Render deployment
-        base_url = os.environ.get('BASE_URL', 'https://bowl.libertyfamily.us')
+        base_url = os.environ.get('BASE_URL', 'http://localhost:5000')
 
         print("\n" + "="*80)
         print("PARTICIPANT LOGIN URLs")

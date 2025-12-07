@@ -11,6 +11,7 @@
 <div class="card" style="border: 2px solid #3498db;">
     <h2>Edit Bowl Game</h2>
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="hidden" name="action" value="edit">
         <input type="hidden" name="bowl_id" value="{{ editing_bowl.id }}">
 
@@ -56,6 +57,7 @@
 <div class="card">
     <h2>Add New Bowl Game</h2>
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="hidden" name="action" value="add">
 
         <div class="form-group">
@@ -116,6 +118,7 @@
                 <td>
                     <a href="{{ url_for('admin_bowls', edit=bowl.id) }}" class="btn">Edit</a>
                     <form method="POST" style="display: inline;" onsubmit="return confirm('Delete {{ bowl.name }}?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="bowl_id" value="{{ bowl.id }}">
                         <button type="submit" class="btn btn-danger">Delete</button>

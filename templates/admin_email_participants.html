@@ -27,6 +27,7 @@
     </div>
 
     <form method="POST" onsubmit="return confirm('Are you sure you want to send login emails to {{ participants_with_email|length }} participant(s)?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <button type="submit" class="btn btn-success" {% if not participants_with_email %}disabled{% endif %}>
             Send Login Emails
         </button>

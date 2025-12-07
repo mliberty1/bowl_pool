@@ -43,6 +43,7 @@
     <h2>Disable Test Mode</h2>
     <p>Return to using real system time.</p>
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="hidden" name="action" value="clear">
         <button type="submit" class="btn btn-danger">Disable Test Mode</button>
     </form>
@@ -59,6 +60,7 @@
     </ul>
 
     <form method="POST" style="margin-top: 20px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="hidden" name="action" value="set">
 
         <div class="form-group">
@@ -83,6 +85,7 @@
     <div style="margin-top: 15px;">
         <strong>Before Picks Lock:</strong><br>
         <form method="POST" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" name="action" value="set">
             <input type="hidden" name="override_datetime" value="{{ (first_bowl.datetime_utc.replace(hour=first_bowl.datetime_utc.hour - 1) if first_bowl.datetime_utc.hour > 0 else first_bowl.datetime_utc).strftime('%Y-%m-%dT%H:%M') }}">
             <button type="submit" class="btn" style="font-size: 0.9em;">1 hour before first game</button>
@@ -92,6 +95,7 @@
     <div style="margin-top: 10px;">
         <strong>After Picks Lock:</strong><br>
         <form method="POST" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" name="action" value="set">
             <input type="hidden" name="override_datetime" value="{{ (first_bowl.datetime_utc.replace(hour=first_bowl.datetime_utc.hour + 1)).strftime('%Y-%m-%dT%H:%M') }}">
             <button type="submit" class="btn" style="font-size: 0.9em;">1 hour after first game</button>
