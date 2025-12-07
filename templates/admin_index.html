@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Bowl Pool{% endblock %}
+
+{% block content %}
+<h1>Admin Dashboard</h1>
+
+<div class="card">
+    <h2>Manage Pool</h2>
+    <p>Use these tools to configure and manage the bowl pool.</p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+        <a href="{{ url_for('admin_scores') }}" class="card" style="text-decoration: none; color: inherit; padding: 20px; border: 2px solid #3498db; transition: transform 0.2s;">
+            <h3 style="color: #3498db; margin-top: 0;">Enter Bowl Scores</h3>
+            <p>Update game scores and status (in progress, final, canceled)</p>
+        </a>
+
+        <a href="{{ url_for('admin_bowls') }}" class="card" style="text-decoration: none; color: inherit; padding: 20px; border: 2px solid #27ae60; transition: transform 0.2s;">
+            <h3 style="color: #27ae60; margin-top: 0;">Manage Bowl Games</h3>
+            <p>Add, edit, or delete bowl games and update spreads</p>
+        </a>
+
+        <a href="{{ url_for('admin_participants') }}" class="card" style="text-decoration: none; color: inherit; padding: 20px; border: 2px solid #e67e22; transition: transform 0.2s;">
+            <h3 style="color: #e67e22; margin-top: 0;">Manage Participants</h3>
+            <p>Add, edit, or remove participants and view invite links</p>
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Quick Links</h2>
+    <p>
+        <a href="{{ url_for('scoreboard') }}" class="btn">View Scoreboard</a>
+        <a href="{{ url_for('picks') }}" class="btn">My Picks</a>
+    </p>
+</div>
+
+<style>
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+</style>
+{% endblock %}

@@ -181,9 +181,12 @@
             <h1>NCAA Bowl Pool</h1>
             <ul>
                 <li><a href="{{ url_for('scoreboard') }}">Scoreboard</a></li>
-                {% if session.get('participant_id') %}
+                {% if current_user %}
                     <li><a href="{{ url_for('picks') }}">My Picks</a></li>
                     <li><a href="{{ url_for('profile') }}">My Profile</a></li>
+                    {% if current_user.is_admin %}
+                        <li><a href="{{ url_for('admin_index') }}">Admin</a></li>
+                    {% endif %}
                     <li><a href="{{ url_for('logout') }}">Logout</a></li>
                 {% else %}
                     <li><a href="{{ url_for('login') }}">Login</a></li>

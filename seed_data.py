@@ -4,6 +4,7 @@ Seed the database with sample data for testing.
 from datetime import datetime, timedelta
 from app import app
 from models import db, Bowl, Participant
+import os
 
 
 def seed_database():
@@ -98,6 +99,9 @@ def seed_database():
         db.session.commit()
 
         # Print participant login URLs
+        # Use environment variable for base URL, default to Render deployment
+        base_url = os.environ.get('BASE_URL', 'https://bowl-pool.onrender.com')
+
         print("\n" + "="*80)
         print("PARTICIPANT LOGIN URLs")
         print("="*80)
@@ -105,7 +109,7 @@ def seed_database():
         for p in all_participants:
             print(f"\n{p.name} ({p.nickname})")
             print(f"  Admin: {p.is_admin}")
-            print(f"  Login URL: http://localhost:5000/login?token={p.invite_token}")
+            print(f"  Login URL: {base_url}/login?token={p.invite_token}")
 
         print("\n" + "="*80)
         print(f"Successfully seeded {len(all_participants)} participants and {len(bowls)} bowl games!")

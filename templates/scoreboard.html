@@ -181,19 +181,6 @@
     </table>
 </div>
 
-{% if session.get('participant_id') %}
-    {% set current_participant = namespace() %}
-    {% for p in participants if p.id == session.get('participant_id') %}
-        {% set current_participant.obj = p %}
-    {% endfor %}
-    {% if current_participant.obj and current_participant.obj.is_admin %}
-    <div style="margin-top: 20px;">
-        <a href="{{ url_for('admin_scores') }}" class="btn">Admin: Enter Scores</a>
-        <a href="{{ url_for('admin_bowls') }}" class="btn">Admin: Manage Bowls</a>
-        <a href="{{ url_for('admin_participants') }}" class="btn">Admin: Manage Participants</a>
-    </div>
-    {% endif %}
-{% endif %}
 {% endblock %}
 
 {% block extra_js %}

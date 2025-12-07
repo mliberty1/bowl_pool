@@ -11,6 +11,15 @@ app.config.from_object(Config)
 db.init_app(app)
 
 
+@app.context_processor
+def inject_current_user():
+    """Make current participant available to all templates"""
+    participant = None
+    if 'participant_id' in session:
+        participant = Participant.query.get(session['participant_id'])
+    return dict(current_user=participant)
+
+
 # Authentication decorator
 def login_required(f):
     @wraps(f)
@@ -125,6 +134,7 @@ def login():
         participant = Participant.query.filter_by(invite_token=token_from_url).first()
         if participant:
             session['participant_id'] = participant.id
+            session['is_admin'] = participant.is_admin
             flash(f'Welcome, {participant.get_display_name()}!', 'success')
             return redirect(url_for('picks'))
         else:
@@ -136,6 +146,7 @@ def login():
 
         if participant:
             session['participant_id'] = participant.id
+            session['is_admin'] = participant.is_admin
             flash(f'Welcome, {participant.get_display_name()}!', 'success')
             return redirect(url_for('picks'))
         else:
@@ -148,6 +159,7 @@ def login():
 def logout():
     """Logout"""
     session.pop('participant_id', None)
+    session.pop('is_admin', None)
     flash('You have been logged out', 'info')
     return redirect(url_for('login'))
 
@@ -343,6 +355,13 @@ def scoreboard():
                            locked=locked,
                            pick_counts=pick_counts,
                            total_participants=len(participants))
+
+
+@app.route('/admin')
+@admin_required
+def admin_index():
+    """Admin dashboard"""
+    return render_template('admin_index.html')
 
 
 @app.route('/admin/scores', methods=['GET', 'POST'])
