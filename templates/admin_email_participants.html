@@ -28,6 +28,9 @@
             </div>
         </div>
 
+        <div><strong>From:</strong> Bowl Pool &lt;[Bowl Pool Email]&gt;</div>
+        <div><strong>To:</strong> [Participant Name] &lt;[Participant Email]&gt;</div>
+
         <div style="margin-bottom: 20px;">
             <label for="subject" style="display: block; font-weight: bold; margin-bottom: 5px;">
                 Subject:
@@ -40,11 +43,11 @@
             <label for="body" style="display: block; font-weight: bold; margin-bottom: 5px;">
                 Email Body:
             </label>
+            <textarea id="body" name="body" rows="12" required
+                      style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">{{ default_body }}</textarea>
             <div style="background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 5px; padding: 10px; margin-bottom: 5px; font-size: 0.9em;">
                 <strong>Template Variables:</strong> Use <code>{{ '{{ display_name }}' }}</code> for the participant's name and <code>{{ '{{ login_url }}' }}</code> for their unique login link.
             </div>
-            <textarea id="body" name="body" rows="12" required
-                      style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">{{ default_body }}</textarea>
         </div>
 
         {% if participants_without_email %}
@@ -98,33 +101,4 @@ function confirmSend() {
 }
 </script>
 
-<div class="card">
-    <h2>Email Preview</h2>
-    <p>Preview of how the email will look (using template variables as examples):</p>
-    <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; font-family: monospace; white-space: pre-wrap;">
-<strong>From:</strong> Bowl Pool &lt;postmaster@mg.libertyfamily.us&gt;
-<strong>To:</strong> [Participant Name] &lt;[Participant Email]&gt;
-<strong>Subject:</strong> <span id="preview-subject">{{ default_subject }}</span>
-
-<span id="preview-body">{{ default_body }}</span>
-    </div>
-    <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
-        <strong>Note:</strong> <code>{{ '{{ display_name }}' }}</code> will be replaced with each participant's name, and <code>{{ '{{ login_url }}' }}</code> will be replaced with their unique login link.
-    </p>
-</div>
-
-<script>
-// Update preview when form fields change
-document.getElementById('subject').addEventListener('input', function() {
-    document.getElementById('preview-subject').textContent = this.value || '(No subject)';
-});
-
-document.getElementById('body').addEventListener('input', function() {
-    document.getElementById('preview-body').textContent = this.value || '(No body)';
-});
-
-// Set initial values
-document.getElementById('preview-subject').textContent = document.getElementById('subject').value;
-document.getElementById('preview-body').textContent = document.getElementById('body').value;
-</script>
 {% endblock %}

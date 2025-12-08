@@ -785,12 +785,11 @@ Bowl Pool Admin"""
         return redirect(url_for('admin_email_participants'))
 
     # GET request - show the page with prepopulated values
-    participants = Participant.query.all()
-    participants_with_email = [p for p in participants if p.email]
-    participants_without_email = [p for p in participants if not p.email]
+    all_participants = Participant.query.all()
+    participants_with_email = [p for p in all_participants if p.email]
+    participants_without_email = [p for p in all_participants if not p.email]
 
     return render_template('admin_email_participants.html',
-                           participants=participants,
                            participants_with_email=participants_with_email,
                            participants_without_email=participants_without_email,
                            default_subject=default_subject,

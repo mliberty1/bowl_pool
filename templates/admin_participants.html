@@ -84,6 +84,7 @@
                 <th>Nickname</th>
                 <th>Email</th>
                 <th>Admin</th>
+                <th>Active</th>
                 <th>Invite Token</th>
                 <th>Actions</th>
             </tr>
@@ -95,6 +96,7 @@
                 <td>{{ participant.nickname or '-' }}</td>
                 <td>{{ participant.email or '-' }}</td>
                 <td>{{ 'Yes' if participant.is_admin else 'No' }}</td>
+                <td>{{ 'Yes' if participant.is_active else 'No' }}</td>
                 <td>
                     {% set login_url = url_for('login', token=participant.invite_token, _external=True) %}
                     <strong>Login URL:</strong><br>
