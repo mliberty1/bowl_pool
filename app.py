@@ -4,6 +4,7 @@ from models import db, Bowl, Participant, Pick, Settings
 from config import Config
 from functools import wraps
 from datetime import datetime, timezone
+from jinja2 import Template
 import random
 import os
 import requests
@@ -663,11 +664,27 @@ def admin_participants():
     return render_template('admin_participants.html', participants=participants, editing_participant=editing_participant)
 
 
-def send_participant_email(participant, base_url):
-    """Send login email to a single participant using Mailgun API"""
+def send_participant_email(participant, base_url, subject, body_template):
+    """Send email to a single participant using Mailgun API
+
+    Args:
+        participant: Participant object
+        base_url: Base URL for the application
+        subject: Email subject line
+        body_template: Email body as a Jinja2 template string.
+                      Supports {{ login_url }} and {{ display_name }} variables.
+    """
     api_key = os.environ.get('MAILGUN_API_KEY')
     if not api_key:
         raise ValueError('MAILGUN_API_KEY environment variable not set')
+
+    mailgun_domain = os.environ.get('MAILGUN_DOMAIN')
+    if not mailgun_domain:
+        raise ValueError('MAILGUN_DOMAIN environment variable not set')
+
+    email_from = os.environ.get('EMAIL_FROM')
+    if not email_from:
+        raise ValueError('EMAIL_FROM environment variable not set')
 
     # Sanitize names to prevent email header injection
     display_name = sanitize_name(participant.get_display_name())
@@ -675,24 +692,20 @@ def send_participant_email(participant, base_url):
 
     login_url = f"{base_url}/login?token={participant.invite_token}"
 
-    email_body = f"""Hello {display_name},
-
-Welcome to the Bowl Pool! You can access your account and make your picks using the following link:
-
-{login_url}
-
-Good luck!
-
-Bowl Pool Admin
-"""
+    # Render body template with Jinja2
+    template = Template(body_template)
+    email_body = template.render(
+        login_url=login_url,
+        display_name=display_name
+    )
 
     response = requests.post(
-        "https://api.mailgun.net/v3/mg.libertyfamily.us/messages",
+        f"https://api.mailgun.net/v3/{mailgun_domain}/messages",
         auth=("api", api_key),
         data={
-            "from": "Bowl Pool <postmaster@mg.libertyfamily.us>",
+            "from": email_from,
             "to": f"{participant_name} <{participant.email}>",
-            "subject": "Bowl Pool - Your Login Link",
+            "subject": subject,
             "text": email_body
         }
     )
@@ -703,12 +716,44 @@ Bowl Pool Admin
 @app.route('/admin/email-participants', methods=['GET', 'POST'])
 @admin_required
 def admin_email_participants():
-    """Admin page to email all participants their login URLs"""
+    """Admin page to email participants with customizable messages"""
+    # Default email template
+    default_subject = "Bowl Pool - Your Login Link"
+    default_body = """Hello {{ display_name }},
+
+Welcome to the Bowl Pool! You can access your account and make your picks using the following link:
+
+{{ login_url }}
+
+Good luck!
+
+Bowl Pool Admin"""
+
     if request.method == 'POST':
         # Get base URL from request
         base_url = request.url_root.rstrip('/')
 
-        participants = Participant.query.all()
+        # Get form data
+        subject = request.form.get('subject', '').strip()
+        body = request.form.get('body', '').strip()
+        is_active_filter = request.form.get('is_active_filter', 'all')
+
+        if not subject:
+            flash('Subject is required', 'error')
+            return redirect(url_for('admin_email_participants'))
+
+        if not body:
+            flash('Body is required', 'error')
+            return redirect(url_for('admin_email_participants'))
+
+        # Filter participants based on is_active_filter
+        if is_active_filter == 'active':
+            participants = Participant.query.filter_by(is_active=True).all()
+        elif is_active_filter == 'not_active':
+            participants = Participant.query.filter_by(is_active=False).all()
+        else:  # 'all'
+            participants = Participant.query.all()
+
         success_count = 0
         error_count = 0
         errors = []
@@ -720,7 +765,7 @@ def admin_email_participants():
                 continue
 
             try:
-                response = send_participant_email(participant, base_url)
+                response = send_participant_email(participant, base_url, subject, body)
                 if response.status_code == 200:
                     success_count += 1
                 else:
@@ -739,7 +784,7 @@ def admin_email_participants():
 
         return redirect(url_for('admin_email_participants'))
 
-    # GET request - show the page
+    # GET request - show the page with prepopulated values
     participants = Participant.query.all()
     participants_with_email = [p for p in participants if p.email]
     participants_without_email = [p for p in participants if not p.email]
@@ -747,7 +792,9 @@ def admin_email_participants():
     return render_template('admin_email_participants.html',
                            participants=participants,
                            participants_with_email=participants_with_email,
-                           participants_without_email=participants_without_email)
+                           participants_without_email=participants_without_email,
+                           default_subject=default_subject,
+                           default_body=default_body)
 
 
 @app.route('/admin/backup')

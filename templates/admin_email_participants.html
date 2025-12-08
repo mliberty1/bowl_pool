@@ -8,84 +8,123 @@
 <p><a href="{{ url_for('admin_index') }}">&larr; Back to Admin Dashboard</a></p>
 
 <div class="card">
-    <h2>Send Login Links to All Participants</h2>
-    <p>This tool will send an email to all participants who have an email address on file. Each email will contain their unique login link.</p>
+    <h2>Send Email to Participants</h2>
+    <p>Customize the email message and select which participants to email. The body supports Jinja2 template variables for personalization.</p>
 
-    {% if participants_without_email %}
-    <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 15px; margin: 20px 0;">
-        <strong>Warning:</strong> The following participants do not have email addresses and will be skipped:
-        <ul>
-            {% for participant in participants_without_email %}
-            <li>{{ participant.name }}</li>
-            {% endfor %}
-        </ul>
-    </div>
-    {% endif %}
-
-    <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 5px; padding: 15px; margin: 20px 0;">
-        <strong>Ready to send:</strong> {{ participants_with_email|length }} email(s) will be sent.
-    </div>
-
-    <form method="POST" onsubmit="return confirm('Are you sure you want to send login emails to {{ participants_with_email|length }} participant(s)?');">
+    <form method="POST" id="emailForm" onsubmit="return confirmSend();">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+        <div style="margin-bottom: 20px;">
+            <label for="is_active_filter" style="display: block; font-weight: bold; margin-bottom: 5px;">
+                Target Audience:
+            </label>
+            <select id="is_active_filter" name="is_active_filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" onchange="updateRecipientCount()">
+                <option value="all">All Participants</option>
+                <option value="active">Active Participants (completed picks)</option>
+                <option value="not_active">Not Active Participants (incomplete picks)</option>
+            </select>
+            <div id="recipient-count" style="background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 5px; padding: 10px; margin-top: 10px;">
+                <strong>Ready to send:</strong> <span id="count-text">{{ participants_with_email|length }}</span> email(s) will be sent.
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label for="subject" style="display: block; font-weight: bold; margin-bottom: 5px;">
+                Subject:
+            </label>
+            <input type="text" id="subject" name="subject" value="{{ default_subject }}" required
+                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label for="body" style="display: block; font-weight: bold; margin-bottom: 5px;">
+                Email Body:
+            </label>
+            <div style="background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 5px; padding: 10px; margin-bottom: 5px; font-size: 0.9em;">
+                <strong>Template Variables:</strong> Use <code>{{ '{{ display_name }}' }}</code> for the participant's name and <code>{{ '{{ login_url }}' }}</code> for their unique login link.
+            </div>
+            <textarea id="body" name="body" rows="12" required
+                      style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">{{ default_body }}</textarea>
+        </div>
+
+        {% if participants_without_email %}
+        <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 15px; margin: 20px 0;">
+            <strong>Warning:</strong> The following participants do not have email addresses and will be skipped:
+            <ul>
+                {% for participant in participants_without_email %}
+                <li>{{ participant.name }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
         <button type="submit" class="btn btn-success" {% if not participants_with_email %}disabled{% endif %}>
-            Send Login Emails
+            Send Emails
         </button>
     </form>
 </div>
 
-<div class="card">
-    <h2>Participant Email Status</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Login URL</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for participant in participants %}
-            <tr>
-                <td>{{ participant.name }}</td>
-                <td>{{ participant.email or '-' }}</td>
-                <td>
-                    {% set login_url = url_for('login', token=participant.invite_token, _external=True) %}
-                    <input type="text" value="{{ login_url }}" readonly
-                           style="width: 100%; font-family: monospace; font-size: 0.85em;"
-                           onclick="this.select()">
-                </td>
-                <td>
-                    {% if participant.email %}
-                    <span style="color: #27ae60; font-weight: bold;">✓ Ready</span>
-                    {% else %}
-                    <span style="color: #e74c3c; font-weight: bold;">✗ No Email</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+<script>
+// Count participants by is_active status
+const allCount = {{ participants_with_email|length }};
+const activeCount = {{ participants_with_email|selectattr('is_active')|list|length }};
+const notActiveCount = allCount - activeCount;
+
+function updateRecipientCount() {
+    const filter = document.getElementById('is_active_filter').value;
+    const countText = document.getElementById('count-text');
+
+    if (filter === 'all') {
+        countText.textContent = allCount;
+    } else if (filter === 'active') {
+        countText.textContent = activeCount;
+    } else if (filter === 'not_active') {
+        countText.textContent = notActiveCount;
+    }
+}
+
+function confirmSend() {
+    const filter = document.getElementById('is_active_filter').value;
+    const count = document.getElementById('count-text').textContent;
+    let audienceText = 'all participants';
+
+    if (filter === 'active') {
+        audienceText = 'active participants';
+    } else if (filter === 'not_active') {
+        audienceText = 'not active participants';
+    }
+
+    return confirm(`Are you sure you want to send emails to ${count} ${audienceText}?`);
+}
+</script>
 
 <div class="card">
     <h2>Email Preview</h2>
-    <p>Each participant will receive an email similar to this:</p>
-    <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; font-family: monospace; white-space: pre-line;">
+    <p>Preview of how the email will look (using template variables as examples):</p>
+    <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; font-family: monospace; white-space: pre-wrap;">
 <strong>From:</strong> Bowl Pool &lt;postmaster@mg.libertyfamily.us&gt;
 <strong>To:</strong> [Participant Name] &lt;[Participant Email]&gt;
-<strong>Subject:</strong> Bowl Pool - Your Login Link
+<strong>Subject:</strong> <span id="preview-subject">{{ default_subject }}</span>
 
-Hello [Participant Name],
-
-Welcome to the Bowl Pool! You can access your account and make your picks using the following link:
-
-[Login URL]
-
-Good luck!
-
-Bowl Pool Admin
+<span id="preview-body">{{ default_body }}</span>
     </div>
+    <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+        <strong>Note:</strong> <code>{{ '{{ display_name }}' }}</code> will be replaced with each participant's name, and <code>{{ '{{ login_url }}' }}</code> will be replaced with their unique login link.
+    </p>
 </div>
+
+<script>
+// Update preview when form fields change
+document.getElementById('subject').addEventListener('input', function() {
+    document.getElementById('preview-subject').textContent = this.value || '(No subject)';
+});
+
+document.getElementById('body').addEventListener('input', function() {
+    document.getElementById('preview-body').textContent = this.value || '(No body)';
+});
+
+// Set initial values
+document.getElementById('preview-subject').textContent = document.getElementById('subject').value;
+document.getElementById('preview-body').textContent = document.getElementById('body').value;
+</script>
 {% endblock %}
