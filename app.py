@@ -3,7 +3,7 @@ from flask_wtf.csrf import CSRFProtect
 from models import db, Bowl, Participant, Pick, Settings
 from config import Config
 from functools import wraps
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from jinja2 import Template
 import random
 import os
@@ -583,12 +583,21 @@ def admin_test_mode():
 
     # Get first bowl game for reference
     first_bowl = Bowl.query.order_by(Bowl.datetime_utc).first()
-
+    if first_bowl:
+        t_before = first_bowl.datetime_utc + timedelta(hours=-1)
+        t_after = first_bowl.datetime_utc + timedelta(hours=1)
+    else:
+        t_before = None
+        t_after = None
+    
     return render_template('admin_test_mode.html',
                            settings=settings,
                            current_datetime=get_current_datetime(),
                            real_datetime=datetime.now(timezone.utc).replace(tzinfo=None),
-                           first_bowl=first_bowl)
+                           first_bowl=first_bowl,
+                           t_before=t_before,
+                           t_after=t_after,
+                           )
 
 
 @app.route('/admin/participants', methods=['GET', 'POST'])

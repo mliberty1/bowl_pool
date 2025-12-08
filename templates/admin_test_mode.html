@@ -87,7 +87,7 @@
         <form method="POST" style="display: inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" name="action" value="set">
-            <input type="hidden" name="override_datetime" value="{{ (first_bowl.datetime_utc.replace(hour=first_bowl.datetime_utc.hour - 1) if first_bowl.datetime_utc.hour > 0 else first_bowl.datetime_utc).strftime('%Y-%m-%dT%H:%M') }}">
+            <input type="hidden" name="override_datetime" value="{{ t_before.strftime('%Y-%m-%dT%H:%M') }}">
             <button type="submit" class="btn" style="font-size: 0.9em;">1 hour before first game</button>
         </form>
     </div>
@@ -97,7 +97,7 @@
         <form method="POST" style="display: inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" name="action" value="set">
-            <input type="hidden" name="override_datetime" value="{{ (first_bowl.datetime_utc.replace(hour=first_bowl.datetime_utc.hour + 1)).strftime('%Y-%m-%dT%H:%M') }}">
+            <input type="hidden" name="override_datetime" value="{{ t_after.strftime('%Y-%m-%dT%H:%M') }}">
             <button type="submit" class="btn" style="font-size: 0.9em;">1 hour after first game</button>
         </form>
     </div>
