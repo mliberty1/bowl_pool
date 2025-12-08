@@ -88,8 +88,8 @@
     }
 
     .team-score {
-        display: block;
-        padding: 3px 5px;
+        display: inline-block;
+        padding: 3px 8px;
         margin: 2px 0;
         border-radius: 3px;
     }
@@ -139,9 +139,35 @@
         <tbody>
             {% for bowl in bowls %}
             <tr>
-                <td class="game-info-cell">
-                    <strong>{{ bowl.name }}</strong>
-                    <div style="font-size: 0.75em; color: #666; margin-top: 3px;">
+                <td class="game-info-cell" title="{{ bowl.name }}">
+                    <div style="margin-bottom: 5px;">
+                        {% if bowl.status == 'final' and bowl.favored_team_score is not none %}
+                            {% set winner = bowl.get_winner() %}
+                            <span class="team-score {% if winner == 'favored' %}team-winner{% elif winner == 'push' %}team-push{% else %}team-loser{% endif %}" style="font-weight: bold;">
+                                {{ bowl.favored_team }} ({{ bowl.spread }}) {{ bowl.favored_team_score }}
+                            </span>
+                            <span style="font-weight: bold; margin: 0 8px;">vs</span>
+                            <span class="team-score {% if winner == 'opponent' %}team-winner{% elif winner == 'push' %}team-push{% else %}team-loser{% endif %}" style="font-weight: bold;">
+                                {{ bowl.opponent }} {{ bowl.opponent_score }}
+                            </span>
+                        {% elif bowl.status == 'in_progress' %}
+                            <strong>{{ bowl.favored_team }} ({{ bowl.spread }})</strong>
+                            <span style="font-weight: bold; margin: 0 5px;">vs</span>
+                            <strong>{{ bowl.opponent }}</strong>
+                            <div style="font-size: 0.85em; margin-top: 3px;"><em>In Progress</em></div>
+                        {% elif bowl.status == 'canceled' %}
+                            <strong>{{ bowl.favored_team }} ({{ bowl.spread }})</strong>
+                            <span style="font-weight: bold; margin: 0 5px;">vs</span>
+                            <strong>{{ bowl.opponent }}</strong>
+                            <div style="font-size: 0.85em; margin-top: 3px;"><em>Canceled</em></div>
+                        {% else %}
+                            <strong>{{ bowl.favored_team }} ({{ bowl.spread }})</strong>
+                            <span style="font-weight: bold; margin: 0 5px;">vs</span>
+                            <strong>{{ bowl.opponent }}</strong>
+                        {% endif %}
+                    </div>
+                    {% if bowl.status not in ['final', 'canceled'] %}
+                    <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
                         <span class="game-time" data-utc="{{ bowl.datetime_utc.isoformat() }}Z">
                             {{ bowl.datetime_utc.strftime('%b %d, %I:%M %p UTC') }}
                         </span>
@@ -149,27 +175,7 @@
                         <span style="margin-left: 10px; font-weight: bold;">{{ bowl.tv_channel }}</span>
                         {% endif %}
                     </div>
-                    <div style="font-size: 0.85em; margin-top: 5px;">
-                        {% if bowl.status == 'final' and bowl.favored_team_score is not none %}
-                            {% set winner = bowl.get_winner() %}
-                            <span class="team-score {% if winner == 'favored' %}team-winner{% elif winner == 'push' %}team-push{% else %}team-loser{% endif %}">
-                                {{ bowl.favored_team }}: {{ bowl.favored_team_score }}
-                                {% if bowl.spread < 0 %}({{ bowl.spread }}){% endif %}
-                            </span>
-                            <span class="team-score {% if winner == 'opponent' %}team-winner{% elif winner == 'push' %}team-push{% else %}team-loser{% endif %}">
-                                {{ bowl.opponent }}: {{ bowl.opponent_score }}
-                                {% if bowl.spread > 0 %}(+{{ bowl.spread }}){% endif %}
-                            </span>
-                        {% elif bowl.status == 'in_progress' %}
-                            <small>{{ bowl.favored_team }} ({{ bowl.spread }}) vs {{ bowl.opponent }}</small><br>
-                            <small><em>In Progress</em></small>
-                        {% elif bowl.status == 'canceled' %}
-                            <small>{{ bowl.favored_team }} ({{ bowl.spread }}) vs {{ bowl.opponent }}</small><br>
-                            <small><em>Canceled</em></small>
-                        {% else %}
-                            <small>{{ bowl.favored_team }} ({{ bowl.spread }}) vs {{ bowl.opponent }}</small>
-                        {% endif %}
-                    </div>
+                    {% endif %}
                 </td>
                 {% for participant in participants %}
                 <td class="pick-cell

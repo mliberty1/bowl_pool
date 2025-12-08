@@ -130,7 +130,7 @@
     <div class="pick-row {% if locked %}locked{% endif %}">
         <div>
             <strong>{{ bowl.name }}</strong>
-            <div class="game-info">{{ bowl.datetime_utc.strftime('%b %d, %Y %I:%M %p UTC') }}</div>
+            <div class="game-info game-time" data-utc="{{ bowl.datetime_utc.isoformat() }}Z">{{ bowl.datetime_utc.strftime('%b %d, %Y %I:%M %p UTC') }}</div>
         </div>
 
         <div class="team-pick {% if not locked %}clickable{% else %}disabled{% endif %} {% if current_picks.get(bowl.id) == 'favored' %}selected{% endif %}"
@@ -169,6 +169,27 @@
 {% block extra_js %}
 <script>
 let isSaving = false;
+
+// Convert UTC times to local timezone
+document.addEventListener('DOMContentLoaded', function() {
+    const gameTimes = document.querySelectorAll('.game-time');
+    gameTimes.forEach(function(timeElement) {
+        const utcTime = timeElement.getAttribute('data-utc');
+        if (utcTime) {
+            const date = new Date(utcTime);
+            // Format: "Dec 20, 3:30 PM EST"
+            const options = {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                timeZoneName: 'short'
+            };
+            timeElement.textContent = date.toLocaleString('en-US', options);
+        }
+    });
+});
 
 // Get CSRF token from meta tag
 function getCsrfToken() {
