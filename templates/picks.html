@@ -111,6 +111,8 @@
 {% block content %}
 <h1>My Picks - {{ participant.get_display_name() }}</h1>
 
+<div>Select the winning team for each game.</div>
+
 {% if locked %}
     <div class="status-indicator status-locked">
         LOCKED - Picks are finalized
@@ -124,6 +126,11 @@
         INCOMPLETE - Not all picks made yet
     </div>
 {% endif %}
+
+<div>The point spread is added to the team on the left to compute the final score.
+The team with the higher score after the spread is the winner.
+If the spread is negative, then the left (first) team is favored.
+If the spread is positive, then the right (second) team is favored.</div>
 
 <div id="picks-container">
     {% for bowl in bowls %}
@@ -141,7 +148,7 @@
         </div>
 
         <div class="spread">
-            {{ bowl.spread }}
+            {{ ('+' if bowl.spread >= 0 else '-') ~ (bowl.spread|abs|int if bowl.spread == (bowl.spread|int) else bowl.spread|abs) }}
         </div>
 
         <div class="team-pick {% if not locked %}clickable{% else %}disabled{% endif %} {% if current_picks.get(bowl.id) == 'opponent' %}selected{% endif %}"

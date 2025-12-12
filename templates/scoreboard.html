@@ -144,24 +144,24 @@
                         {% if bowl.status == 'final' and bowl.favored_team_score is not none %}
                             {% set winner = bowl.get_winner() %}
                             <span class="team-score {% if winner == 'favored' %}team-winner{% elif winner == 'push' %}team-push{% else %}team-loser{% endif %}" style="font-weight: bold;">
-                                {{ bowl.favored_team }} ({{ bowl.spread }}) {{ bowl.favored_team_score }}
+                                {{ bowl.favored_team }} ({{ ('+' if bowl.spread >= 0 else '-') ~ (bowl.spread|abs|int if bowl.spread == (bowl.spread|int) else bowl.spread|abs) }}) {{ bowl.favored_team_score }}
                             </span>
                             <span style="font-weight: bold; margin: 0 8px;">vs</span>
                             <span class="team-score {% if winner == 'opponent' %}team-winner{% elif winner == 'push' %}team-push{% else %}team-loser{% endif %}" style="font-weight: bold;">
                                 {{ bowl.opponent }} {{ bowl.opponent_score }}
                             </span>
                         {% elif bowl.status == 'in_progress' %}
-                            <strong>{{ bowl.favored_team }} ({{ bowl.spread }})</strong>
+                            <strong>{{ bowl.favored_team }} ({{ ('+' if bowl.spread >= 0 else '-') ~ (bowl.spread|abs|int if bowl.spread == (bowl.spread|int) else bowl.spread|abs) }})</strong>
                             <span style="font-weight: bold; margin: 0 5px;">vs</span>
                             <strong>{{ bowl.opponent }}</strong>
                             <div style="font-size: 0.85em; margin-top: 3px;"><em>In Progress</em></div>
                         {% elif bowl.status == 'canceled' %}
-                            <strong>{{ bowl.favored_team }} ({{ bowl.spread }})</strong>
+                            <strong>{{ bowl.favored_team }} ({{ ('+' if bowl.spread >= 0 else '-') ~ (bowl.spread|abs|int if bowl.spread == (bowl.spread|int) else bowl.spread|abs) }})</strong>
                             <span style="font-weight: bold; margin: 0 5px;">vs</span>
                             <strong>{{ bowl.opponent }}</strong>
                             <div style="font-size: 0.85em; margin-top: 3px;"><em>Canceled</em></div>
                         {% else %}
-                            <strong>{{ bowl.favored_team }} ({{ bowl.spread }})</strong>
+                            <strong>{{ bowl.favored_team }} ({{ ('+' if bowl.spread >= 0 else '-') ~ (bowl.spread|abs|int if bowl.spread == (bowl.spread|int) else bowl.spread|abs) }})</strong>
                             <span style="font-weight: bold; margin: 0 5px;">vs</span>
                             <strong>{{ bowl.opponent }}</strong>
                         {% endif %}
