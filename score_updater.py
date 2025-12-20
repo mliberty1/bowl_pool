@@ -26,9 +26,11 @@ class ScoreUpdater:
 
         with self.app.app_context():
             try:
-                # Get all bowls that aren't finished or canceled
+                # Get all bowls that aren't finished or canceled and have already started
+                now_utc = datetime.utcnow()
                 active_bowls = Bowl.query.filter(
-                    Bowl.status.in_(['not_started', 'in_progress'])
+                    Bowl.status.in_(['not_started', 'in_progress']),
+                    Bowl.datetime_utc <= now_utc
                 ).all()
 
                 if not active_bowls:
@@ -60,8 +62,8 @@ class ScoreUpdater:
         if not bowls:
             return []
 
-        # Get date range
-        start_date = min(bowl.datetime_utc for bowl in bowls).date()
+        # Get date range (ESPN API uses local time, so include one day earlier to catch all games)
+        start_date = min(bowl.datetime_utc for bowl in bowls).date() - timedelta(days=1)
         end_date = max(bowl.datetime_utc for bowl in bowls).date() + timedelta(days=1)
 
         # ESPN API uses YYYYMMDD format
