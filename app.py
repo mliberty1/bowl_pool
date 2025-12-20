@@ -13,12 +13,37 @@ import subprocess
 import tempfile
 import shutil
 from email_validator import validate_email, EmailNotValidError
+from apscheduler.schedulers.background import BackgroundScheduler
+from score_updater import ScoreUpdater
+import logging
+import atexit
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config.from_object(Config)
 db.init_app(app)
 csrf = CSRFProtect(app)
+
+# Initialize score updater
+score_updater = ScoreUpdater(app)
+
+# Initialize background scheduler for automatic score updates
+scheduler = BackgroundScheduler()
+scheduler.add_job(
+    func=score_updater.update_scores,
+    trigger='interval',
+    minutes=5,
+    id='score_update_job',
+    name='Update bowl game scores every 5 minutes',
+    replace_existing=True
+)
+scheduler.start()
+
+# Shut down the scheduler when the app exits
+atexit.register(lambda: scheduler.shutdown())
 
 
 # Input validation helpers
@@ -463,6 +488,20 @@ def admin_scores():
 
     bowls = Bowl.query.order_by(Bowl.datetime_utc).all()
     return render_template('admin_scores.html', bowls=bowls)
+
+
+@app.route('/admin/update-scores', methods=['POST'])
+@admin_required
+def admin_update_scores():
+    """Manually trigger score updates from ESPN API"""
+    try:
+        score_updater.update_scores()
+        flash('Score update triggered successfully', 'success')
+    except Exception as e:
+        logger.error(f"Error triggering score update: {e}")
+        flash(f'Error updating scores: {str(e)}', 'error')
+
+    return redirect(url_for('admin_scores'))
 
 
 @app.route('/admin/bowls', methods=['GET', 'POST'])
