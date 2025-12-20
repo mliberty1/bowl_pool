@@ -52,6 +52,9 @@ class Bowl(db.Model):
             return 'push'
         if self.favored_team_score is None or self.opponent_score is None:
             return None
+        # Only return a winner if the game is final
+        if self.status != 'final':
+            return None
 
         # Apply spread to favored team score
         favored_adjusted = self.favored_team_score + self.spread

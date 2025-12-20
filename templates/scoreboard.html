@@ -6,11 +6,13 @@
 <style>
     .scoreboard-table {
         overflow-x: auto;
+        overflow-y: auto;
+        max-height: calc(100vh - 250px);
     }
 
     .scoreboard-table table {
-        min-width: 800px;
-        font-size: 0.9em;
+        border-collapse: collapse;
+        border-spacing: 0;
     }
 
     .scoreboard-table th {
@@ -21,13 +23,26 @@
     }
 
     .scoreboard-table .game-col {
-        min-width: 200px;
+        position: sticky;
+        left: 0;
+        z-index: 20;
         background-color: #34495e;
     }
 
     .scoreboard-table .participant-col {
         text-align: center;
         min-width: 100px;
+    }
+
+    .scoreboard-table tbody td:first-child {
+        position: sticky;
+        left: 0;
+        background-color: white;
+        z-index: 5;
+    }
+
+    .scoreboard-table .total-row td:first-child {
+        background-color: #e8e8e8;
     }
 
     .pick-cell {
@@ -108,10 +123,6 @@
     .team-push {
         background-color: #fff3cd;
         color: #856404;
-    }
-
-    .game-info-cell {
-        min-width: 250px;
     }
 </style>
 {% endblock %}
