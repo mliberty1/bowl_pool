@@ -135,8 +135,15 @@ class ScoreUpdater:
             if favored_score is not None and opponent_score is not None:
                 bowl.favored_team_score = favored_score
                 bowl.opponent_score = opponent_score
-                bowl.status = new_status
-                logger.info(f"Updated {bowl.name}: {bowl.favored_team} {favored_score} vs {bowl.opponent} {opponent_score} ({new_status})")
+
+                # Only update status if the transition is valid (forward-only)
+                if self._is_valid_status_transition(bowl.status, new_status):
+                    bowl.status = new_status
+                    logger.info(f"Updated {bowl.name}: {bowl.favored_team} {favored_score} vs {bowl.opponent} {opponent_score} ({new_status})")
+                else:
+                    logger.warning(f"Skipped invalid status transition for {bowl.name}: {bowl.status} -> {new_status}")
+                    logger.info(f"Updated scores for {bowl.name}: {bowl.favored_team} {favored_score} vs {bowl.opponent} {opponent_score} (status unchanged: {bowl.status})")
+
                 return True
 
             return False
@@ -213,3 +220,23 @@ class ScoreUpdater:
             return 'canceled'
         else:
             return 'not_started'
+
+    def _is_valid_status_transition(self, current_status, new_status):
+        """Check if a status transition is valid (forward-only)."""
+        # Define the status hierarchy (order matters)
+        status_order = {
+            'not_started': 0,
+            'in_progress': 1,
+            'final': 2,
+            'canceled': 2  # canceled is also a terminal state
+        }
+
+        # Allow same status (no change)
+        if current_status == new_status:
+            return True
+
+        # Only allow forward transitions
+        current_level = status_order.get(current_status, 0)
+        new_level = status_order.get(new_status, 0)
+
+        return new_level > current_level
