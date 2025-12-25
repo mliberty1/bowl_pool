@@ -26,6 +26,16 @@
                    value="{{ editing_bowl.datetime_utc.strftime('%Y-%m-%dT%H:%M') }}" required>
         </div>
 
+        <div class="form-group">
+            <label for="edit_round">Round/Group:</label>
+            <select id="edit_round" name="round" required>
+                <option value="first_round" {% if editing_bowl.round == 'first_round' %}selected{% endif %}>First Round</option>
+                <option value="quarterfinals" {% if editing_bowl.round == 'quarterfinals' %}selected{% endif %}>Quarterfinals</option>
+                <option value="semifinals" {% if editing_bowl.round == 'semifinals' %}selected{% endif %}>Semifinals</option>
+                <option value="championship" {% if editing_bowl.round == 'championship' %}selected{% endif %}>Championship</option>
+            </select>
+        </div>
+
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
             <div class="form-group">
                 <label for="edit_favored_team">Favored Team:</label>
@@ -68,6 +78,16 @@
         <div class="form-group">
             <label for="datetime_utc">Date/Time (UTC):</label>
             <input type="datetime-local" id="datetime_utc" name="datetime_utc" required>
+        </div>
+
+        <div class="form-group">
+            <label for="round">Round/Group:</label>
+            <select id="round" name="round" required>
+                <option value="first_round">First Round</option>
+                <option value="quarterfinals" selected>Quarterfinals</option>
+                <option value="semifinals">Semifinals</option>
+                <option value="championship">Championship</option>
+            </select>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">

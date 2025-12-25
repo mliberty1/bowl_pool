@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Admin: Manage Rounds - Bowl Pool{% endblock %}
+
+{% block content %}
+<h1>Admin: Manage Round Status</h1>
+
+<p><a href="{{ url_for('scoreboard') }}">&larr; Back to Scoreboard</a></p>
+
+<div class="card">
+    <h2>Round Lock Status</h2>
+    <p>Control which rounds are available for participants to make picks. Only unlocked rounds will appear on the picks page.</p>
+
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                <th style="padding: 10px; text-align: left;">Round Name</th>
+                <th style="padding: 10px; text-align: center;">Status</th>
+                <th style="padding: 10px; text-align: center;">Games in Round</th>
+                <th style="padding: 10px; text-align: center;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for round_status in rounds %}
+            <tr style="border-bottom: 1px solid #dee2e6;">
+                <td style="padding: 10px;">
+                    <strong>{{ round_status.round_name|replace('_', ' ')|title }}</strong>
+                </td>
+                <td style="padding: 10px; text-align: center;">
+                    {% if round_status.is_locked %}
+                        <span style="color: #dc3545; font-weight: bold;">🔒 LOCKED</span>
+                    {% else %}
+                        <span style="color: #28a745; font-weight: bold;">🔓 UNLOCKED</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 10px; text-align: center;">
+                    {{ game_counts.get(round_status.round_name, 0) }} games
+                </td>
+                <td style="padding: 10px; text-align: center;">
+                    <form method="POST" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="action" value="toggle">
+                        <input type="hidden" name="round_name" value="{{ round_status.round_name }}">
+                        {% if round_status.is_locked %}
+                            <button type="submit" class="btn btn-success" style="padding: 5px 15px;">
+                                Unlock for Picks
+                            </button>
+                        {% else %}
+                            <button type="submit" class="btn btn-danger" style="padding: 5px 15px;">
+                                Lock Round
+                            </button>
+                        {% endif %}
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card" style="margin-top: 20px; background-color: #f8f9fa;">
+    <h3>How Round Locking Works</h3>
+    <ul>
+        <li><strong>Unlocked Rounds:</strong> Games from this round will appear on the picks page (if they haven't started yet)</li>
+        <li><strong>Locked Rounds:</strong> Games from this round will NOT appear on the picks page, even if they haven't started</li>
+        <li><strong>Use Case:</strong> Lock "First Round" before opening "Quarterfinals" to prevent changes to earlier picks</li>
+        <li><strong>Note:</strong> Games that have already started are always locked, regardless of round status</li>
+    </ul>
+</div>
+
+{% if missing_rounds %}
+<div class="card" style="margin-top: 20px; border: 2px solid #ffc107;">
+    <h3 style="color: #856404;">⚠️ Missing Round Status Entries</h3>
+    <p>The following rounds exist in bowls but don't have status entries:</p>
+    <ul>
+        {% for round_name in missing_rounds %}
+        <li>{{ round_name }}</li>
+        {% endfor %}
+    </ul>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="action" value="sync">
+        <button type="submit" class="btn btn-warning">Sync Round Status</button>
+    </form>
+</div>
+{% endif %}
+
+{% endblock %}

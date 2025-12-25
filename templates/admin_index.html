@@ -20,6 +20,11 @@
             <p>Add, edit, or delete bowl games and update spreads</p>
         </a>
 
+        <a href="{{ url_for('admin_rounds') }}" class="card" style="text-decoration: none; color: inherit; padding: 20px; border: 2px solid #16a085; transition: transform 0.2s;">
+            <h3 style="color: #16a085; margin-top: 0;">Manage Round Status</h3>
+            <p>Lock/unlock rounds to control which games appear on picks page</p>
+        </a>
+
         <a href="{{ url_for('admin_participants') }}" class="card" style="text-decoration: none; color: inherit; padding: 20px; border: 2px solid #e67e22; transition: transform 0.2s;">
             <h3 style="color: #e67e22; margin-top: 0;">Manage Participants</h3>
             <p>Add, edit, or remove participants and view invite links</p>

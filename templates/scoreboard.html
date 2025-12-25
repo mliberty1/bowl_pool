@@ -202,6 +202,7 @@
                 {% for participant in participants %}
                 <td class="pick-cell
                     {% set pick = pick_dict.get((participant.id, bowl.id)) %}
+                    {% set is_round_locked = round_locked.get(bowl.round, False) %}
                     {% if bowl.get_winner() == 'push' or bowl.is_ignored %}
                         pick-push
                     {% elif bowl.status == 'final' and pick %}
@@ -212,9 +213,9 @@
                         {% else %}
                             pick-push
                         {% endif %}
-                    {% elif not locked %}
+                    {% elif not is_round_locked %}
                         pick-pending
-                    {% elif locked and bowl.status == 'not_started' and pick %}
+                    {% elif is_round_locked and bowl.status == 'not_started' and pick %}
                         {% set count = pick_counts[bowl.id][pick.picked_team] %}
                         {% if count == 1 %}
                             pick-unique
@@ -224,7 +225,7 @@
                     {% endif %}
                     ">
                     {% if pick %}
-                        {% if locked or bowl.status in ['final', 'in_progress'] %}
+                        {% if is_round_locked or bowl.status in ['final', 'in_progress'] %}
                             {% if pick.picked_team == 'favored' %}
                                 {{ bowl.favored_team }}
                             {% else %}

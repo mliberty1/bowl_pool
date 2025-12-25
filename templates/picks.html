@@ -113,13 +113,13 @@
 
 <div>Select the winning team for each game.</div>
 
-{% if locked %}
+{% if not has_unlocked_games %}
     <div class="status-indicator status-locked">
-        LOCKED - Picks are finalized
+        NO AVAILABLE GAMES - All games have started. Check the scoreboard to see results.
     </div>
-{% elif participant.is_active %}
+{% elif all_picks_made %}
     <div class="status-indicator status-complete" id="status-indicator">
-        COMPLETE - All picks submitted
+        COMPLETE - All available picks submitted
     </div>
 {% else %}
     <div class="status-indicator status-incomplete" id="status-indicator">
@@ -133,35 +133,51 @@ If the spread is negative, then the left (first) team is favored.
 If the spread is positive, then the right (second) team is favored.</div>
 
 <div id="picks-container">
-    {% for bowl in bowls %}
-    <div class="pick-row {% if locked %}locked{% endif %}">
-        <div>
-            <strong>{{ bowl.name }}</strong>
-            <div class="game-info game-time" data-utc="{{ bowl.datetime_utc.isoformat() }}Z">{{ bowl.datetime_utc.strftime('%b %d, %Y %I:%M %p UTC') }}</div>
-        </div>
+    {% if has_unlocked_games %}
+        {% for bowl in bowls %}
+        <div class="pick-row">
+            <div>
+                <strong>{{ bowl.name }}</strong>
+                <div class="game-info">
+                    <span class="game-time" data-utc="{{ bowl.datetime_utc.isoformat() }}Z">
+                        {{ bowl.datetime_utc.strftime('%b %d, %Y %I:%M %p UTC') }}
+                    </span>
+                    {% if bowl.round != 'first_round' %}
+                        <span style="color: #3498db; font-weight: bold; margin-left: 10px;">
+                            {{ bowl.round|replace('_', ' ')|title }}
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
 
-        <div class="team-pick {% if not locked %}clickable{% else %}disabled{% endif %} {% if current_picks.get(bowl.id) == 'favored' %}selected{% endif %}"
-             data-bowl-id="{{ bowl.id }}"
-             data-team="favored"
-             onclick="{% if not locked %}selectTeam({{ bowl.id }}, 'favored'){% endif %}">
-            {{ bowl.favored_team }}
-        </div>
+            <div class="team-pick clickable {% if current_picks.get(bowl.id) == 'favored' %}selected{% endif %}"
+                 data-bowl-id="{{ bowl.id }}"
+                 data-team="favored"
+                 onclick="selectTeam({{ bowl.id }}, 'favored')">
+                {{ bowl.favored_team }}
+            </div>
 
-        <div class="spread">
-            {{ ('+' if bowl.spread >= 0 else '-') ~ (bowl.spread|abs|int if bowl.spread == (bowl.spread|int) else bowl.spread|abs) }}
-        </div>
+            <div class="spread">
+                {{ ('+' if bowl.spread >= 0 else '-') ~ (bowl.spread|abs|int if bowl.spread == (bowl.spread|int) else bowl.spread|abs) }}
+            </div>
 
-        <div class="team-pick {% if not locked %}clickable{% else %}disabled{% endif %} {% if current_picks.get(bowl.id) == 'opponent' %}selected{% endif %}"
-             data-bowl-id="{{ bowl.id }}"
-             data-team="opponent"
-             onclick="{% if not locked %}selectTeam({{ bowl.id }}, 'opponent'){% endif %}">
-            {{ bowl.opponent }}
+            <div class="team-pick clickable {% if current_picks.get(bowl.id) == 'opponent' %}selected{% endif %}"
+                 data-bowl-id="{{ bowl.id }}"
+                 data-team="opponent"
+                 onclick="selectTeam({{ bowl.id }}, 'opponent')">
+                {{ bowl.opponent }}
+            </div>
         </div>
-    </div>
-    {% endfor %}
+        {% endfor %}
+    {% else %}
+        <div style="text-align: center; padding: 40px; color: #666;">
+            <p style="font-size: 1.2em;">No games available for picking at this time.</p>
+            <p>All games have already started. Visit the <a href="{{ url_for('scoreboard') }}">scoreboard</a> to see the results!</p>
+        </div>
+    {% endif %}
 </div>
 
-{% if not locked %}
+{% if has_unlocked_games %}
 <div class="save-status" id="save-status">
     Ready
 </div>
@@ -233,10 +249,6 @@ function updateSaveStatus(status) {
 }
 
 function selectTeam(bowlId, team) {
-    {% if locked %}
-    return;
-    {% endif %}
-
     // Update visual selection immediately
     const pickRow = document.querySelector(`.team-pick[data-bowl-id="${bowlId}"][data-team="${team}"]`).closest('.pick-row');
     pickRow.querySelectorAll('.team-pick').forEach(el => el.classList.remove('selected'));

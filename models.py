@@ -25,12 +25,25 @@ class Settings(db.Model):
         return settings
 
 
+class RoundStatus(db.Model):
+    __tablename__ = 'round_status'
+
+    id = db.Column(db.Integer, primary_key=True)
+    round_name = db.Column(db.String(50), unique=True, nullable=False)
+    is_locked = db.Column(db.Boolean, default=False, nullable=False)
+    display_order = db.Column(db.Integer, nullable=False, default=0)
+
+    def __repr__(self):
+        return f'<RoundStatus {self.round_name} locked={self.is_locked}>'
+
+
 class Bowl(db.Model):
     __tablename__ = 'bowls'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     datetime_utc = db.Column(db.DateTime, nullable=False)
+    round = db.Column(db.String(50), nullable=False, default='first_round')
     favored_team = db.Column(db.String(100), nullable=False)
     opponent = db.Column(db.String(100), nullable=False)
     spread = db.Column(db.Float, nullable=False)  # Favored team point adjustment (e.g., -3.5)

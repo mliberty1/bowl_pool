@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, Response
 from flask_wtf.csrf import CSRFProtect
-from models import db, Bowl, Participant, Pick, Settings
+from models import db, Bowl, Participant, Pick, Settings, RoundStatus
 from config import Config
 from functools import wraps
 from datetime import datetime, timezone, timedelta
@@ -133,11 +133,97 @@ def get_current_participant():
     return None
 
 
-def picks_are_locked():
-    """Check if picks are locked (first bowl game has started)"""
-    first_bowl = Bowl.query.order_by(Bowl.datetime_utc).first()
-    if first_bowl:
-        return get_current_datetime() >= first_bowl.datetime_utc
+def is_game_locked(bowl):
+    """Check if a specific game is locked (game has started)"""
+    return get_current_datetime() >= bowl.datetime_utc
+
+
+def get_unlocked_bowls():
+    """Get all bowls from unlocked rounds where games haven't started"""
+    current_time = get_current_datetime()
+
+    # Get unlocked round names
+    unlocked_rounds = RoundStatus.query.filter_by(is_locked=False).all()
+    unlocked_round_names = [r.round_name for r in unlocked_rounds]
+
+    if not unlocked_round_names:
+        return []
+
+    # Return bowls from unlocked rounds that haven't started yet
+    return Bowl.query.filter(
+        Bowl.round.in_(unlocked_round_names),
+        Bowl.datetime_utc > current_time
+    ).order_by(Bowl.datetime_utc).all()
+
+
+def get_locked_bowls():
+    """Get all bowls that are locked (either in locked rounds OR games have started)"""
+    current_time = get_current_datetime()
+
+    # Get locked round names
+    locked_rounds = RoundStatus.query.filter_by(is_locked=True).all()
+    locked_round_names = [r.round_name for r in locked_rounds]
+
+    # Return bowls that are either in locked rounds OR have started
+    if locked_round_names:
+        return Bowl.query.filter(
+            db.or_(
+                Bowl.round.in_(locked_round_names),
+                Bowl.datetime_utc <= current_time
+            )
+        ).order_by(Bowl.datetime_utc).all()
+    else:
+        # No locked rounds, just return games that have started
+        return Bowl.query.filter(Bowl.datetime_utc <= current_time).order_by(Bowl.datetime_utc).all()
+
+
+def get_unlocked_rounds():
+    """Get list of round names that are unlocked in RoundStatus"""
+    unlocked_statuses = RoundStatus.query.filter_by(is_locked=False).all()
+    return [rs.round_name for rs in unlocked_statuses]
+
+
+def is_round_complete_for_participant(participant, round_name):
+    """Check if participant has made picks for all games in an unlocked round that haven't started"""
+    # First check if the round is even unlocked
+    round_status = RoundStatus.query.filter_by(round_name=round_name).first()
+    if not round_status or round_status.is_locked:
+        return True  # Round is locked, so we don't care about completion
+
+    # Get games in this unlocked round that haven't started yet
+    unlocked_in_round = Bowl.query.filter(
+        Bowl.round == round_name,
+        Bowl.datetime_utc > get_current_datetime()
+    ).all()
+
+    if not unlocked_in_round:
+        return True  # No games in this round that need picks
+
+    # Check if participant has picks for all games
+    for bowl in unlocked_in_round:
+        pick = Pick.query.filter_by(
+            participant_id=participant.id,
+            bowl_id=bowl.id
+        ).first()
+        if not pick:
+            return False
+
+    return True
+
+
+def has_picks_in_any_unlocked_round(participant):
+    """Check if participant has at least one complete round of unlocked picks"""
+    unlocked_rounds = get_unlocked_rounds()
+
+    if not unlocked_rounds:
+        # No unlocked games - check if they had picks in ANY round
+        return len(participant.picks) > 0
+
+    # Check if they completed at least one unlocked round
+    for round_name in unlocked_rounds:
+        if is_round_complete_for_participant(participant, round_name):
+            return True
+
     return False
 
 
@@ -218,8 +304,8 @@ def login():
         if participant:
             session['participant_id'] = participant.id
             flash(f'Welcome, {participant.get_display_name()}!', 'success')
-            # Redirect to scoreboard if picks are locked, otherwise to picks page
-            if picks_are_locked():
+            # Redirect to scoreboard if no unlocked games, otherwise to picks page
+            if len(get_unlocked_bowls()) == 0:
                 return redirect(url_for('scoreboard'))
             return redirect(url_for('picks'))
         else:
@@ -232,8 +318,8 @@ def login():
         if participant:
             session['participant_id'] = participant.id
             flash(f'Welcome, {participant.get_display_name()}!', 'success')
-            # Redirect to scoreboard if picks are locked, otherwise to picks page
-            if picks_are_locked():
+            # Redirect to scoreboard if no unlocked games, otherwise to picks page
+            if len(get_unlocked_bowls()) == 0:
                 return redirect(url_for('scoreboard'))
             return redirect(url_for('picks'))
         else:
@@ -286,23 +372,27 @@ def profile():
 def picks():
     """Entry form for participants to make their picks"""
     participant = get_current_participant()
-    locked = picks_are_locked()
 
-    # Get bowls and current picks
-    bowls = Bowl.query.order_by(Bowl.datetime_utc).all()
+    # Get ONLY unlocked bowls (games that haven't started yet)
+    bowls = get_unlocked_bowls()
+
+    # Get current picks
     current_picks = {}
     for pick in participant.picks:
         current_picks[pick.bowl_id] = pick.picked_team
 
-    # Check if all picks are made
-    all_picks_made = len(current_picks) == len(bowls)
+    # Check if all unlocked picks are made
+    all_picks_made = len([b for b in bowls if b.id in current_picks]) == len(bowls)
+
+    # Check if there are any unlocked games at all
+    has_unlocked_games = len(bowls) > 0
 
     return render_template('picks.html',
                            participant=participant,
                            bowls=bowls,
                            current_picks=current_picks,
-                           locked=locked,
-                           all_picks_made=all_picks_made)
+                           all_picks_made=all_picks_made,
+                           has_unlocked_games=has_unlocked_games)
 
 
 @app.route('/api/save-pick', methods=['POST'])
@@ -310,10 +400,6 @@ def picks():
 def save_pick():
     """Auto-save a single pick"""
     participant = get_current_participant()
-    locked = picks_are_locked()
-
-    if locked:
-        return jsonify({'success': False, 'error': 'Picks are locked'}), 400
 
     data = request.get_json()
     bowl_id = data.get('bowl_id')
@@ -326,6 +412,10 @@ def save_pick():
     bowl = Bowl.query.get(bowl_id)
     if not bowl:
         return jsonify({'success': False, 'error': 'Bowl game not found'}), 404
+
+    # Check if THIS SPECIFIC GAME is locked
+    if is_game_locked(bowl):
+        return jsonify({'success': False, 'error': 'This game has already started'}), 400
 
     # Update or create pick
     existing_pick = Pick.query.filter_by(
@@ -343,42 +433,45 @@ def save_pick():
         )
         db.session.add(new_pick)
 
-    # Check if all picks are now made
-    bowls = Bowl.query.all()
-    total_bowls = len(bowls)
-    total_picks = Pick.query.filter_by(participant_id=participant.id).count()
-
-    # Set is_active to true if all picks are made
-    if total_picks == total_bowls:
-        participant.is_active = True
-    else:
-        participant.is_active = False
+    # Update is_active based on whether they've completed picks for any unlocked round
+    participant.is_active = has_picks_in_any_unlocked_round(participant)
 
     db.session.commit()
+
+    # Get counts for UI update
+    unlocked_bowls = get_unlocked_bowls()
+    total_unlocked = len(unlocked_bowls)
+    total_unlocked_picks = len([b for b in unlocked_bowls if b.id in [p.bowl_id for p in participant.picks]])
 
     return jsonify({
         'success': True,
         'is_active': participant.is_active,
-        'total_picks': total_picks,
-        'total_bowls': total_bowls
+        'total_picks': total_unlocked_picks,
+        'total_bowls': total_unlocked
     })
 
 
 @app.route('/api/clear-picks', methods=['POST'])
 @login_required
 def clear_picks():
-    """Clear all picks"""
+    """Clear all picks for unlocked games"""
     participant = get_current_participant()
-    locked = picks_are_locked()
 
-    if locked:
-        return jsonify({'success': False, 'error': 'Picks are locked'}), 400
+    # Get unlocked bowls
+    unlocked_bowls = get_unlocked_bowls()
+    unlocked_bowl_ids = [b.id for b in unlocked_bowls]
 
-    # Delete all picks for this participant
-    Pick.query.filter_by(participant_id=participant.id).delete()
+    if not unlocked_bowl_ids:
+        return jsonify({'success': False, 'error': 'No unlocked games to clear'}), 400
 
-    # Set is_active to false
-    participant.is_active = False
+    # Delete picks for unlocked games only
+    Pick.query.filter(
+        Pick.participant_id == participant.id,
+        Pick.bowl_id.in_(unlocked_bowl_ids)
+    ).delete(synchronize_session=False)
+
+    # Update is_active
+    participant.is_active = has_picks_in_any_unlocked_round(participant)
 
     db.session.commit()
 
@@ -388,21 +481,20 @@ def clear_picks():
 @app.route('/api/randomize-picks', methods=['POST'])
 @login_required
 def randomize_picks():
-    """Randomize all remaining picks"""
+    """Randomize all remaining picks for unlocked games"""
     participant = get_current_participant()
-    locked = picks_are_locked()
 
-    if locked:
-        return jsonify({'success': False, 'error': 'Picks are locked'}), 400
+    # Get unlocked bowls only
+    unlocked_bowls = get_unlocked_bowls()
 
-    # Get all bowls
-    bowls = Bowl.query.all()
+    if not unlocked_bowls:
+        return jsonify({'success': False, 'error': 'No unlocked games available'}), 400
 
     # Get current picks
     current_picks = {pick.bowl_id: pick for pick in participant.picks}
 
-    # Randomize picks for bowls that don't have picks yet
-    for bowl in bowls:
+    # Randomize picks for unlocked bowls that don't have picks yet
+    for bowl in unlocked_bowls:
         if bowl.id not in current_picks:
             picked_team = random.choice(['favored', 'opponent'])
             new_pick = Pick(
@@ -412,8 +504,8 @@ def randomize_picks():
             )
             db.session.add(new_pick)
 
-    # Set is_active to true (all picks are now made)
-    participant.is_active = True
+    # Update is_active
+    participant.is_active = has_picks_in_any_unlocked_round(participant)
 
     db.session.commit()
 
@@ -430,7 +522,10 @@ def scoreboard():
     """Display scoreboard with all active participants' picks and scores"""
     participants = Participant.query.filter_by(is_active=True).all()
     bowls = Bowl.query.order_by(Bowl.datetime_utc).all()
-    locked = picks_are_locked()
+
+    # Get round lock status - create a dict for easy lookup
+    round_statuses = RoundStatus.query.all()
+    round_locked = {rs.round_name: rs.is_locked for rs in round_statuses}
 
     # Get all picks
     all_picks = Pick.query.all()
@@ -455,7 +550,7 @@ def scoreboard():
                            bowls=bowls,
                            pick_dict=pick_dict,
                            scores=scores,
-                           locked=locked,
+                           round_locked=round_locked,
                            pick_counts=pick_counts,
                            total_participants=len(participants))
 
@@ -533,6 +628,7 @@ def admin_bowls():
                 bowl = Bowl(
                     name=name,
                     datetime_utc=datetime_utc,
+                    round=request.form.get('round', 'first_round'),
                     favored_team=favored_team,
                     opponent=opponent,
                     spread=float(request.form.get('spread')),
@@ -564,6 +660,7 @@ def admin_bowls():
 
                     bowl.name = name
                     bowl.datetime_utc = datetime_utc
+                    bowl.round = request.form.get('round', 'first_round')
                     bowl.favored_team = favored_team
                     bowl.opponent = opponent
                     bowl.spread = float(request.form.get('spread'))
@@ -592,6 +689,77 @@ def admin_bowls():
         editing_bowl = Bowl.query.get(edit_bowl_id)
 
     return render_template('admin_bowls.html', bowls=bowls, editing_bowl=editing_bowl)
+
+
+@app.route('/admin/rounds', methods=['GET', 'POST'])
+@admin_required
+def admin_rounds():
+    """Admin page to manage round lock status"""
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'toggle':
+            round_name = request.form.get('round_name')
+            round_status = RoundStatus.query.filter_by(round_name=round_name).first()
+            if round_status:
+                round_status.is_locked = not round_status.is_locked
+                db.session.commit()
+                status = "locked" if round_status.is_locked else "unlocked"
+                flash(f'Round "{round_name}" is now {status}', 'success')
+
+        elif action == 'sync':
+            # Get all distinct rounds from bowls
+            all_rounds = db.session.query(Bowl.round).distinct().all()
+            all_round_names = [r[0] for r in all_rounds]
+
+            # Get existing round status entries
+            existing_statuses = RoundStatus.query.all()
+            existing_names = {rs.round_name for rs in existing_statuses}
+
+            # Create missing entries
+            round_order = {
+                'first_round': 1,
+                'quarterfinals': 2,
+                'semifinals': 3,
+                'championship': 4
+            }
+
+            added = 0
+            for round_name in all_round_names:
+                if round_name not in existing_names:
+                    order = round_order.get(round_name, 999)
+                    new_status = RoundStatus(
+                        round_name=round_name,
+                        is_locked=False,
+                        display_order=order
+                    )
+                    db.session.add(new_status)
+                    added += 1
+
+            db.session.commit()
+            flash(f'Synced round status: added {added} new round(s)', 'success')
+
+        return redirect(url_for('admin_rounds'))
+
+    # Get all round statuses
+    rounds = RoundStatus.query.order_by(RoundStatus.display_order).all()
+
+    # Count games per round
+    game_counts = {}
+    for round_status in rounds:
+        count = Bowl.query.filter_by(round=round_status.round_name).count()
+        game_counts[round_status.round_name] = count
+
+    # Check for rounds in bowls that don't have status entries
+    all_rounds = db.session.query(Bowl.round).distinct().all()
+    all_round_names = {r[0] for r in all_rounds}
+    existing_status_names = {rs.round_name for rs in rounds}
+    missing_rounds = all_round_names - existing_status_names
+
+    return render_template('admin_rounds.html',
+                           rounds=rounds,
+                           game_counts=game_counts,
+                           missing_rounds=missing_rounds)
 
 
 @app.route('/admin/test-mode', methods=['GET', 'POST'])
