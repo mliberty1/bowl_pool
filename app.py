@@ -517,6 +517,12 @@ def randomize_picks():
     return jsonify({'success': True, 'picks': all_picks})
 
 
+@app.route('/history')
+def history():
+    """Display history page with links to past results"""
+    return render_template('history.html')
+
+
 @app.route('/scoreboard')
 def scoreboard():
     """Display scoreboard with all active participants' picks and scores"""

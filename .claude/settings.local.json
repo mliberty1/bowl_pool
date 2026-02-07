@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(timeout:*)",
+      "Bash(python app.py:*)",
+      "Bash(ping:*)",
+      "Bash(set FLASK_ENV=development)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:site.api.espn.com)",
+      "Bash(pip install:*)",
+      "Bash(sqlite3:*)",
+      "Bash(python migrate_add_round.py:*)",
+      "Bash(python:*)",
+      "Bash(set SECRET_KEY=test-key)",
+      "Bash($env:FLASK_ENV=\"development\")",
+      "Bash(FLASK_ENV=development python:*)"
+    ]
+  }
+}
