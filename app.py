@@ -523,6 +523,12 @@ def history():
     return render_template('history.html')
 
 
+@app.route('/history/2025')
+def history_2025():
+    """Display 2025 bowl pool results"""
+    return render_template('history_2025.html')
+
+
 @app.route('/scoreboard')
 def scoreboard():
     """Display scoreboard with all active participants' picks and scores"""
