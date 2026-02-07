@@ -130,10 +130,14 @@
 {% block content %}
 <h1>Scoreboard</h1>
 
-<div class="controls card">
+<div class="controls card" style="display: flex; gap: 30px; align-items: center;">
     <label>
         <input type="checkbox" id="toggle-running-total" onchange="toggleRunningTotal()">
         <span class="toggle-label">Show Running Total</span>
+    </label>
+    <label>
+        <input type="checkbox" id="toggle-printable" onchange="togglePrintable()">
+        <span class="toggle-label">Printable</span>
     </label>
 </div>
 
@@ -339,6 +343,18 @@ function toggleRunningTotal() {
             }
         });
     });
+}
+
+function togglePrintable() {
+    const container = document.querySelector('.scoreboard-table');
+    const checked = document.getElementById('toggle-printable').checked;
+    if (checked) {
+        container.style.maxHeight = 'none';
+        container.style.overflow = 'visible';
+    } else {
+        container.style.maxHeight = '';
+        container.style.overflow = '';
+    }
 }
 </script>
 {% endblock %}
