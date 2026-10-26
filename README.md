@@ -2,9 +2,9 @@
 
 This project contains a very simple bowl pool manager suitable
 for running a small family NCAA men's football bowl pool.
-The project uses Python + Flask.  The default deployment
-is to [Render](https://render.com) using sqlite mounted
-on a persistent volume.
+The project uses Python + Flask with a sqlite database.  It is
+deployed to a home server behind Caddy; every push to `main`
+deploys automatically.  See [DEPLOYMENT.md](DEPLOYMENT.md).
 
 
 # Motivation
@@ -114,6 +114,6 @@ direct SQL database management for unusual cases is not a show stopper.
 
 # Implementation and Deployment
 
-This application will be implemented in Flask + Python with a Postgres database.
-Code will live on GitHub.
-It will be deployed using Render automatically.
+This application is implemented in Flask + Python with a sqlite database.
+Code lives on GitHub and is deployed to the home `edge` server on every
+push to `main` (see [DEPLOYMENT.md](DEPLOYMENT.md)).

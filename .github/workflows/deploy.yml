@@ -1,0 +1,32 @@
+name: deploy
+on:
+  push:
+    branches: [main]
+concurrency:
+  group: deploy-bowl-pool
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask edge to restart (restart = git pull + redeploy)
+        env:
+          TOKEN: ${{ secrets.BOWL_POOL_DEPLOY_TOKEN }}
+        run: |
+          curl -fsS --max-time 30 -X POST \
+              -H "Authorization: Bearer $TOKEN" \
+              https://bowl.libertyfamily.us/webhook/update
+      - name: Wait until edge serves this commit
+        run: |
+          for i in $(seq 1 36); do
+            sleep 5
+            sha=$(curl -fsS --max-time 10 https://bowl.libertyfamily.us/healthz \
+                  | jq -r .git_sha 2>/dev/null || true)
+            if [ "$sha" = "$GITHUB_SHA" ]; then
+              echo "edge is serving $sha"
+              exit 0
+            fi
+            echo "attempt $i: edge serving ${sha:-nothing yet}"
+          done
+          echo "edge did not come up on $GITHUB_SHA within 3 minutes" >&2
+          exit 1

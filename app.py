@@ -17,6 +17,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from score_updater import ScoreUpdater
 import logging
 import atexit
+import hmac
+import signal
+import threading
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -1126,6 +1129,50 @@ def admin_backup_download():
     except Exception as e:
         flash(f'Error creating backup: {str(e)}', 'error')
         return redirect(url_for('admin_backup'))
+
+
+# =============================================================================
+# Deployment (see DEPLOYMENT.md)
+# =============================================================================
+
+# Set by deploy/bowl_pool-start.sh on edge; lets the GitHub Action confirm
+# which commit is actually serving after a restart.
+GIT_SHA = os.environ.get('GIT_SHA', 'unknown')
+
+
+@app.route('/healthz')
+def healthz():
+    """Liveness check that also reports the running commit."""
+    return jsonify({'status': 'ok', 'git_sha': GIT_SHA})
+
+
+@app.route('/webhook/update', methods=['POST'])
+@csrf.exempt
+def webhook_update():
+    """Trigger a redeploy by shutting the server down.
+
+    On edge, systemd restarts bowl_pool.service and the start script pulls
+    origin/main before relaunching gunicorn, so "restart" is "deploy".
+    Requires "Authorization: Bearer <DEPLOY_TOKEN>". When DEPLOY_TOKEN is
+    unset (local dev) the route does not exist. CSRF is exempted because
+    the caller is GitHub Actions, not a browser session.
+    """
+    token = os.environ.get('DEPLOY_TOKEN')
+    if not token:
+        return jsonify({'error': 'not found'}), 404
+    scheme, _, presented = request.headers.get('Authorization', '').partition(' ')
+    if scheme.lower() != 'bearer' or not hmac.compare_digest(presented.strip(), token):
+        return jsonify({'error': 'unauthorized'}), 401
+
+    def shutdown():
+        # A gunicorn worker's parent is the gunicorn master. SIGTERM asks it
+        # to shut down gracefully once in-flight requests complete, and it
+        # exits 0, which is why the unit uses Restart=always.
+        os.kill(os.getppid(), signal.SIGTERM)
+
+    logger.warning('Deploy webhook accepted at %s; shutting down for restart', GIT_SHA)
+    threading.Timer(1.0, shutdown).start()
+    return jsonify({'status': 'restarting', 'git_sha': GIT_SHA}), 202
 
 
 if __name__ == '__main__':

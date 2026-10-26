@@ -80,15 +80,15 @@ After seeding the database, use the admin user's invite token to log in. The tok
 2. Navigate to "Admin: Enter Scores"
 3. Update scores and game status as games complete
 
-## Deployment to Render
+## Deployment
 
-1. Push your code to GitHub
-2. Connect your GitHub repository to Render
-3. Render will automatically detect the `render.yaml` configuration
-4. The database and web service will be provisioned automatically
-5. Run the database initialization:
-   - In the Render shell: `python init_db.py`
-   - Then seed data: `python seed_data.py`
+Production runs on the home `edge` server behind Caddy. Every push to
+`main` deploys automatically; see [DEPLOYMENT.md](DEPLOYMENT.md) for how
+that works and how to recover from a bad push.
+
+`render.yaml` is the older Render.com configuration, kept until the Render
+service is deleted. On Render the one-time setup was `python init_db.py`
+then `python seed_data.py` in the Render shell.
 
 ## Features
 
@@ -109,7 +109,9 @@ bowl_pool/
 ├── init_db.py             # Database initialization
 ├── seed_data.py           # Sample data seeding
 ├── requirements.txt       # Python dependencies
-├── render.yaml            # Render deployment config
+├── render.yaml            # Legacy Render deployment config
+├── deploy/                # edge start script and systemd unit
+├── DEPLOYMENT.md          # How production deploys work
 ├── templates/             # HTML templates
 │   ├── base.html
 │   ├── login.html

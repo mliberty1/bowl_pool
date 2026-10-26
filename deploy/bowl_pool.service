@@ -1,0 +1,25 @@
+# /etc/systemd/system/bowl_pool.service
+#
+# Restart=always is required: the deploy webhook stops gunicorn with SIGTERM
+# (exit 0), which Restart=on-failure would not restart. The start limit is
+# disabled so a crash loop keeps retrying; each retry pulls origin/main, so
+# pushing a fix is enough to recover without ssh.
+
+[Unit]
+Description=Bowl Pool (Flask / gunicorn)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+User=bowl
+Group=bowl
+WorkingDirectory=/var/bowl/app
+EnvironmentFile=/var/bowl/env
+ExecStart=/bin/bash /var/bowl/app/deploy/bowl_pool-start.sh
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
