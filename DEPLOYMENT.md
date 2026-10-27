@@ -56,8 +56,9 @@ Never edit tracked files in `/var/bowl/app`; every start does
 
 ## One-time setup (switching from the hand-run unit)
 
-The service was first set up with a plain `ExecStart=gunicorn ...` unit and
-`Restart=on-failure`. To move it to the webhook flow, on edge:
+Done 2026-10-26. Kept for rebuilding the host. The service was first set up
+with a plain `ExecStart=gunicorn ...` unit and `Restart=on-failure`. To move
+it to the webhook flow, on edge:
 
 ```bash
 # 1. token into the env file (same value goes into the GitHub secret)
