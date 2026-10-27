@@ -51,6 +51,16 @@ Generate secrets with:
 python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
 
+The variable name must be exactly `DEPLOY_TOKEN`. When the app cannot see
+it, `/webhook/update` returns 404 instead of 401, which is the quickest way
+to tell a missing or misnamed variable from a wrong GitHub secret:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}
+" -X POST https://bowl.libertyfamily.us/webhook/update
+# 401 = token loaded, 404 = not loaded (check the name, then restart the unit)
+```
+
 Never edit tracked files in `/var/bowl/app`; every start does
 `git reset --hard origin/main` and discards them.
 
